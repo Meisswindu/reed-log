@@ -131,6 +131,8 @@ function reedToMarkdown(r) {
     r.saistīts_ar && `saistīts_ar: ${r.saistīts_ar}`,
     r.reitings_sākumā && `reitings_sākumā: "${r.reitings_sākumā}"`,
     r.reitings_tagad && `reitings_tagad: "${r.reitings_tagad}"`,
+    r.e_nestabila === "jā" && `e_nestabila: "jā"`,
+    r.e_nestabila === "jā" && r.e_pakape && `e_nestabilitates_pakape: "${r.e_pakape}"`,
     "---"
   ].filter(Boolean).join("\n");
   const meas = r.m.length ? "\n" + r.m.map(row => `${row.point} - ${row.left}, ${row.right}`).join("\n") + "\n" : "";
@@ -232,6 +234,7 @@ function parseReedMarkdown(text, fallbackId) {
     wire_gauge: fm.wire_gauge || "", tip_profiler_setting: fm.tip_profiler_setting || "",
     status: fm.status || "testēšanā", saistīts_ar: fm.saistīts_ar || "",
     reitings_sākumā: fm.reitings_sākumā || "", reitings_tagad: fm.reitings_tagad || "",
+    e_nestabila: fm.e_nestabila || "", e_pakape: fm.e_nestabilitates_pakape || "",
     m: meas, log, comments: notes, _file: fallbackId + ".md"
   };
 }
@@ -262,7 +265,7 @@ function go(v) {
 }
 
 function startNew() {
-  newForm = { reed_id: "…", datums: today(), shape: "9", cane_manufacturer: "", metode: "", cane_hardness: "", wire_gauge: "", tip_profiler_setting: "", status: "testēšanā", saistīts_ar: "", reitings_sākumā: "", reitings_tagad: "", m: [], log: [] };
+  newForm = { reed_id: "…", datums: today(), shape: "9", cane_manufacturer: "", metode: "", cane_hardness: "", wire_gauge: "", tip_profiler_setting: "", status: "testēšanā", saistīts_ar: "", reitings_sākumā: "", reitings_tagad: "", e_nestabila: "", e_pakape: "", m: [], log: [] };
 }
 
 function setForm(k, v) {
@@ -381,6 +384,11 @@ function render() {
         </div>
         <label>metode (kā taisīja blanku)</label>
         <div class="chips">${METODES.map(mm => `<button class="chip ${f.metode===mm?"on":""}" onclick="newForm.metode='${mm}';render()">${mm}</button>`).join("")}</div>
+        <label>Vai E ir nestabils?</label>
+        <div class="chips">${["jā","nē"].map(v => `<button class="chip ${f.e_nestabila===v?"on":""}" onclick="setNewE('${v}')">${v}</button>`).join("")}</div>
+        ${f.e_nestabila === "jā" ? `
+        <label>Cik nestabils? (1–10)</label>
+        <div class="rate">${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${String(f.e_pakape)===String(n)?"on":""}" onclick="setNewEpak(${n})">${n}</button>`).join("")}</div>` : ""}
         <label>status</label>
         <div class="chips">${STATUSES.map(s => `<button class="chip ${f.status===s?"on":""}" onclick="newForm.status='${s}';render()">${s}</button>`).join("")}</div>
         <label>reitings_sākumā (1–10)</label>
@@ -417,7 +425,7 @@ function render() {
               <span class="pill s-${esc(r.status)}">${esc(r.status)}</span>
             </div>
           </div>
-          <div class="chips">${[r.cane_manufacturer, r.metode && "metode: "+r.metode, r.shape && "shape "+r.shape, r.tip_profiler_setting && "TP "+r.tip_profiler_setting, r.wire_gauge].filter(Boolean).map(v => `<button class="mchip" onclick="selectedMatch=reeds.find(x=>x.reed_id==='${esc(r.reed_id)}');render()">${esc(v)}</button>`).join("")}</div>
+          <div class="chips">${[r.cane_manufacturer, r.metode && "metode: "+r.metode, r.shape && "shape "+r.shape, r.tip_profiler_setting && "TP "+r.tip_profiler_setting, r.e_nestabila==="jā" && "E nestabils"+(r.e_pakape ? " "+r.e_pakape+"/10" : ""), r.wire_gauge].filter(Boolean).map(v => `<button class="mchip" onclick="selectedMatch=reeds.find(x=>x.reed_id==='${esc(r.reed_id)}');render()">${esc(v)}</button>`).join("")}</div>
           <div class="txt">reitings: ${hist.map((v,i) => `<span style="${i===hist.length-1?"color:#b45309;font-weight:700":""}">${v}${i<hist.length-1?" → ":""}</span>`).join("")}${hist.length?"":"–"}${hist.length?"/10":""} ${sparkline(hist)}</div>
           ${r.log.length ? `<div class="txt" style="font-style:italic;margin-top:6px;color:#78716c">"${esc(r.log[r.log.length-1].text).slice(0,120)}"</div>` : ""}
         </div>`;
@@ -446,6 +454,15 @@ function render() {
         <label>reitings_tagad (1–10) ${r.reitings_tagad ? `— tagad: <span style="color:#b45309;font-weight:700">${esc(r.reitings_tagad)}/10</span>` : "— nav vēl"}</label>
         <div class="rate">${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${String(r.reitings_tagad)===String(n)?"on":""}" onclick="rateReed(${n})">${n}</button>`).join("")}</div>
         <button class="primary" onclick="saveEdit()">💾 Saglabāt izmaiņas</button>
+      </div>
+
+      <div class="card">
+        <b style="font-size:14px">🎵 E stabilitāte</b>
+        <label style="margin-top:10px">Vai E ir nestabils?</label>
+        <div class="chips">${["jā","nē"].map(v => `<button class="chip ${r.e_nestabila===v?"on":""}" onclick="setE('${v}')">${v}</button>`).join("")}</div>
+        ${r.e_nestabila === "jā" ? `
+        <label>Cik nestabils? (1–10)</label>
+        <div class="rate">${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${String(r.e_pakape)===String(n)?"on":""}" onclick="setEpak(${n})">${n}</button>`).join("")}</div>` : ""}
       </div>
 
       <div class="card">
@@ -545,7 +562,11 @@ function editM(point, side, val) {
   row[side] = val;
   if (!row.left && !row.right) r.m = r.m.filter(x => normPoint(x.point) !== point);
   persist();
-}function editField(k, v) { const r = reeds.find(x => x.reed_id === editTarget); if (r) { r[k] = v; persist(); } }
+}function setE(v) { const r = reeds.find(x => x.reed_id === editTarget); if (!r) return; r.e_nestabila = String(r.e_nestabila) === v ? "" : v; if (r.e_nestabila !== "jā") r.e_pakape = ""; persist(); render(); }
+function setEpak(n) { const r = reeds.find(x => x.reed_id === editTarget); if (!r) return; r.e_pakape = String(r.e_pakape) === String(n) ? "" : n; persist(); render(); }
+function setNewE(v) { newForm.e_nestabila = String(newForm.e_nestabila) === v ? "" : v; if (newForm.e_nestabila !== "jā") newForm.e_pakape = ""; render(); }
+function setNewEpak(n) { newForm.e_pakape = String(newForm.e_pakape) === String(n) ? "" : n; render(); }
+function editField(k, v) { const r = reeds.find(x => x.reed_id === editTarget); if (r) { r[k] = v; persist(); } }
 function rateReed(n) {
   const r = reeds.find(x => x.reed_id === editTarget); if (!r) return;
   r.reitings_tagad = String(r.reitings_tagad) === String(n) ? "" : n;

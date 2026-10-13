@@ -453,7 +453,7 @@ function render() {
           ${corrRow("4mm", cs.mm4)}
           ${corrRow("16mm", cs.mm16)}
         </table>
-        <div class="sub" style="font-size:11px;margin-top:6px">${(cs.unstable + cs.stable) < 6 ? "Vēl par maz datu — aizpildi E stabilitāti vairākām mēlēm, lai skaitļi kaut ko nozīmētu." : "Sarkanā augšup bulta = šajā punktā nestabilām mēlēm lielāka asimetrija."}</div>
+        <div class="sub" style="font-size:11px;margin-top:6px">${(cs.unstable + cs.stable) < 6 ? "Vēl par maz datu — aizpildi E stabilitāti vairākām mēlēm, lai skaitļi kaut ko nozīmētu." : "Sarkanā augšup bulta = šajā punktā nestabilām mēlēm lielāka starpība (kreisā – labā puse)."}</div>
       </div>` : ""}
       ${sel ? `<div class="card" style="background:#fef3c7;border-color:#fcd34d">
         <div style="display:flex;justify-content:space-between"><b style="font-size:13px">Līdzīgas mēles: ${esc(sel.reed_id)}</b><button class="chip" onclick="selectedMatch=null;render()">notīrīt</button></div>

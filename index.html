@@ -142,6 +142,38 @@ function reedToMarkdown(r) {
 }
 
 function ratingHistory(r) { const h = []; if (r.reitings_sākumā) h.push(r.reitings_sākumā); r.log.forEach(e => e.rating && h.push(e.rating)); if (r.reitings_tagad && String(r.reitings_tagad) !== String(h[h.length-1] ?? "")) h.push(r.reitings_tagad); return h; }
+function getM(r, point) {
+  const row = (r.m || []).find(x => normPoint(x.point) === normPoint(point));
+  if (!row) return null;
+  const l = parseFloat(row.left), rt = parseFloat(row.right);
+  if (isNaN(l) || isNaN(rt)) return null;
+  return { l, r: rt, diff: Math.abs(l - rt) };
+}
+function corrStats() {
+  // group reeds by E stability; collect 4mm/16mm diffs
+  const groups = { unstable: [], stable: [], unrated: [] };
+  reeds.forEach(r => {
+    if (r.e_nestabila === "jā") groups.unstable.push(r);
+    else if (r.e_nestabila === "nē") groups.stable.push(r);
+    else groups.unrated.push(r);
+  });
+  const collect = (arr, p) => {
+    const vals = arr.map(r => getM(r, p)).filter(Boolean);
+    if (!vals.length) return null;
+    const avg = k => (vals.reduce((s, v) => s + v[k], 0) / vals.length);
+    return { n: vals.length, diff: avg("diff"), l: avg("l"), r: avg("r") };
+  };
+  return {
+    unstable: groups.unstable.length, stable: groups.stable.length, unrated: groups.unrated.length,
+    mm4: { unstable: collect(groups.unstable, "4"), stable: collect(groups.stable, "4") },
+    mm16: { unstable: collect(groups.unstable, "16"), stable: collect(groups.stable, "16") },
+  };
+}
+function corrRow(label, d) {
+  if (!d.unstable || !d.stable) return "";
+  const u = d.unstable, s = d.stable;
+  return `<tr><td>${label}</td><td>${u.diff.toFixed(1)}</td><td>${s.diff.toFixed(1)}</td><td style="font-weight:700;color:${u.diff > s.diff ? "#b91c1c" : "#15803d"}">${u.diff > s.diff ? "↑" : "↓"} ${Math.abs(u.diff - s.diff).toFixed(1)}</td></tr>`;
+}
 function sparkline(values) {
   if (values.length < 2) return "";
   const w=100, h=24, pts = values.map((v,i)=>`${(i/(values.length-1))*w},${h-(v/10)*h}`).join(" ");
@@ -408,9 +440,21 @@ function render() {
   }
 
   else if (view === "library") {
+    const cs = corrStats();
+    const anyCorrData = cs.mm4.unstable || cs.mm4.stable || cs.mm16.unstable || cs.mm16.stable;
     const sel = selectedMatch;
     const matches = sel ? reeds.map(r => ({r, s: similarity(sel, r)})).filter(x => x.s >= 4).sort((a,b)=>b.s-a.s).slice(0,4) : [];
     app.innerHTML = `
+      ${anyCorrData ? `<div class="card" style="background:#f0fdf4;border-color:#86efac">
+        <b style="font-size:14px">🔬 E stabilitāte × mikrometrs</b>
+        <div class="sub" style="font-size:11px;margin:2px 0 8px">vidējā starpība (kreisā – labā puse) · nestabilas: ${cs.unstable} · stabillas: ${cs.stable}</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <tr style="color:#78716c"><td style="padding:2px 0">punkts</td><td>nestabilas${cs.mm4.unstable ? ` (n=${cs.mm4.unstable.n})` : ""}</td><td>stabillas${cs.mm4.stable ? ` (n=${cs.mm4.stable.n})` : ""}</td><td>atšķirība</td></tr>
+          ${corrRow("4mm", cs.mm4)}
+          ${corrRow("16mm", cs.mm16)}
+        </table>
+        <div class="sub" style="font-size:11px;margin-top:6px">${(cs.unstable + cs.stable) < 6 ? "Vēl par maz datu — aizpildi E stabilitāti vairākām mēlēm, lai skaitļi kaut ko nozīmētu." : "Sarkanā augšup bulta = šajā punktā nestabilām mēlēm lielāka asimetrija."}</div>
+      </div>` : ""}
       ${sel ? `<div class="card" style="background:#fef3c7;border-color:#fcd34d">
         <div style="display:flex;justify-content:space-between"><b style="font-size:13px">Līdzīgas mēles: ${esc(sel.reed_id)}</b><button class="chip" onclick="selectedMatch=null;render()">notīrīt</button></div>
         ${matches.length ? matches.map(({r,s}) => `<div class="matchrow"><span><b>${esc(r.reed_id)}</b></span><span class="txt">${esc(r.cane_manufacturer||"?")} · TP ${esc(r.tip_profiler_setting||"?")}</span><span class="star">${Math.min(99,Math.round(s*9))}% match</span></div>`).join("") : "<p class='txt'>Nav tuvu sakritību.</p>"}

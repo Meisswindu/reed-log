@@ -54,6 +54,7 @@
   .matchrow { display:flex; justify-content:space-between; align-items:center; background:#fff; border:1px solid #fcd34d; border-radius:10px; padding:6px 10px; margin-top:6px; font-size:13px; }
   .note { font-size:11px; color:#a8a29e; margin-top:6px; }
   .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#292524; color:#fff; padding:10px 20px; border-radius:999px; font-size:13px; display:none; z-index:50; }
+  .syncbar { position:fixed; bottom:0; left:0; right:0; background:#fee2e2; color:#991b1b; padding:10px 16px; font-size:13px; font-weight:600; display:none; z-index:49; text-align:center; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -75,6 +76,7 @@
   <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds</div>
 </div>
 <div class="toast" id="toast"></div>
+<div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
 
 <script>
 // ---------------- config (localStorage) ----------------
@@ -154,10 +156,13 @@ async function gh(path, opts = {}) {
   return res.json();
 }
 
+// encode each path segment but keep the slashes
+const encPath = (p) => p.split("/").map(encodeURIComponent).join("/");
+
 async function commitFile(path, content, message) {
   let sha = null;
-  try { const ex = await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${encodeURIComponent(path)}?ref=${cfg.branch}`); sha = ex.sha; } catch (e) { /* new file */ }
-  await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${encodeURIComponent(path)}`, {
+  try { const ex = await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${encPath(path)}?ref=${encodeURIComponent(cfg.branch)}`); sha = ex.sha; } catch (e) { /* new file */ }
+  await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${encPath(path)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message, content: btoa(unescape(encodeURIComponent(content))), sha, branch: cfg.branch })
@@ -170,14 +175,16 @@ async function pullFromGithub() {
   const out = [];
   for (const f of dir.filter(x => x.name.endsWith(".md"))) {
     try {
-      const blob = await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${encodeURIComponent(f.path)}?ref=${cfg.branch}`);
+      const blob = await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${encPath(f.path)}?ref=${cfg.branch}`);
       const text = decodeURIComponent(escape(atob(blob.content)));
       const r = parseReedMarkdown(text, f.name.replace(/\.md$/,""));
       if (r) out.push(r);
     } catch (e) { /* skip */ }
   }
-  out.sort((a,b) => a.reed_id.localeCompare(b.reed_id));
-  reeds = out; persist();
+  // MERGE, not replace: keep local reeds that aren't on GitHub yet; GitHub wins on conflicts
+  const local = reeds.filter(r => !out.some(g => (g._file || g.reed_id + ".md") === (r._file || r.reed_id + ".md")));
+  reeds = [...out, ...local].sort((a,b) => a.reed_id.localeCompare(b.reed_id));
+  persist();
 }
 
 function parseReedMarkdown(text, fallbackId) {
@@ -234,6 +241,13 @@ let wireSel = { wire: null, action: null };
 let wireTo = "";
 
 function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.style.display = "block"; setTimeout(() => t.style.display = "none", 2500); }
+function syncFail(msg) { const b = document.getElementById("syncbar"); b.textContent = "⚠️ Nav saglabāts GitHub: " + msg + " — spied šeit, lai aizvērtu"; b.style.display = "block"; }
+function pushToGithub(r, what) {
+  if (!cfg.token) return;
+  commitFile(`${cfg.dir}/${r._file || r.reed_id + ".md"}`, reedToMarkdown(r), `reed log: ${r.reed_id} ${what}`)
+    .then(() => toast("Saglabāts GitHub ✓"))
+    .catch(e => syncFail(e.message));
+}
 
 function go(v) {
   if (v === "new") startNew();
@@ -255,7 +269,7 @@ function saveReed() {
   const saved = newForm;
   toast(`Izveidots ${saved.reed_id} ✓`);
   view = "library"; render();
-  if (cfg.token) commitFile(`${cfg.dir}/${saved.reed_id}.md`, reedToMarkdown(saved), `reed log: jauna mēle ${saved.reed_id}`).then(() => toast("Saglabāts GitHub ✓")).catch(e => toast("Kļūda: " + e.message));
+  pushToGithub(saved, "jauna mēle");
 }
 
 function wireText() {
@@ -282,7 +296,7 @@ function saveLog() {
   quickRating = 0;
   toast("Pievienots Log ✓");
   render();
-  if (cfg.token) commitFile(`${cfg.dir}/${r._file || r.reed_id + ".md"}`, reedToMarkdown(r), `reed log: ${r.reed_id} atjaunināts`).then(() => toast("Saglabāts GitHub ✓")).catch(e => toast("Kļūda: " + e.message));
+  pushToGithub(r, "atjaunināts");
 }
 
 function similarity(a, b) {
@@ -554,7 +568,7 @@ function saveEdit() {
   const r = reeds.find(x => x.reed_id === editTarget);
   persist(); toast("Izmaiņas saglabātas ✓");
   view = "library"; render();
-  if (cfg.token) commitFile(`${cfg.dir}/${r._file || r.reed_id + ".md"}`, reedToMarkdown(r), `reed log: ${r.reed_id} labots`).then(() => toast("Saglabāts GitHub ✓")).catch(e => toast("Kļūda: " + e.message));
+  pushToGithub(r, "labots");
 }
 function saveSettings() {
   cfg.token = document.getElementById("cfg-token").value.trim();

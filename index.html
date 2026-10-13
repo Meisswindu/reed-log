@@ -212,6 +212,10 @@ let selectedMatch = null;
 let quickRating = 0;
 let logTarget = reeds.length ? reeds[0].reed_id : "";
 let newForm = null;
+let editTarget = null;
+let editDraft = "";
+let wireSel = { wire: null, action: null };
+let wireTo = "";
 
 function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.style.display = "block"; setTimeout(() => t.style.display = "none", 2500); }
 
@@ -238,11 +242,24 @@ function saveReed() {
   if (cfg.token) commitFile(`${cfg.dir}/${saved.reed_id}.md`, reedToMarkdown(saved), `reed log: jauna mēle ${saved.reed_id}`).then(() => toast("Saglabāts GitHub ✓")).catch(e => toast("Kļūda: " + e.message));
 }
 
+function wireText() {
+  if (!wireSel.wire || !wireSel.action) return "";
+  const verbs = { pievilka: "Pievilku", atlaiza: "Atlaizu", nomainīja: "Nomainīju" };
+  const to = wireTo;
+  let t = `${verbs[wireSel.action]} ${wireSel.wire}`;
+  if (wireSel.action === "nomainīja" && to) t += ` uz ${to}`;
+  wireSel = { wire: null, action: null };
+  wireTo = "";
+  return t + ".";
+}
+
 function saveLog() {
   const txt = document.getElementById("logtext").value.trim();
-  if (!quickRating && !txt) return;
+  const wtxt = wireText();
+  const combined = [wtxt, txt].filter(Boolean).join(" ");
+  if (!quickRating && !combined) return;
   const r = reeds.find(x => x.reed_id === logTarget);
-  const entry = { stamp: nowStamp(), rating: quickRating || null, text: txt };
+  const entry = { stamp: nowStamp(), rating: quickRating || null, text: combined };
   r.log.push(entry);
   if (quickRating) r.reitings_tagad = quickRating;
   persist();
@@ -292,6 +309,10 @@ function render() {
         <select onchange="logTarget=this.value;render()">${reeds.map(r => `<option value="${esc(r.reed_id)}" ${r.reed_id===logTarget?"selected":""}>${esc(r.reed_id)} — ${esc(r.status)}</option>`).join("")}</select>
         <label>Ātrais reitings (1–10)</label>
         <div class="rate">${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${quickRating===n?"on":""}" onclick="quickRating=quickRating===${n}?0:${n};render()">${n}</button>`).join("")}</div>
+        <label>Drāts (ja mainīji)</label>
+        <div class="chips">${["1. drāti","2. drāti","abas drātis"].map(w => `<button class="chip ${wireSel.wire===w?"on":""}" onclick="wireSel.wire='${w}';render()">${w}</button>`).join("")}</div>
+        <div class="chips">${["pievilka","atlaiza","nomainīja"].map(a => `<button class="chip ${wireSel.action===a?"on":""}" onclick="wireSel.action='${a}';render()">${a}</button>`).join("")}</div>
+        ${wireSel.action === "nomainīja" ? `<input value="${esc(wireTo)}" placeholder="nomainīju uz… (piem. 07 Rieger)" style="margin-bottom:4px" oninput="wireTo=this.value">` : ""}
         <label>Kas notika? (nav obligāti)</label>
         <textarea id="logtext" rows="3" placeholder="piem. Pievilku otro drāti, mī stabils…"></textarea>
         <div class="note">Pievienos Log ar zīmogu ${nowStamp()}${quickRating ? ` · reitings_tagad → ${quickRating}/10` : ""}</div>
@@ -349,13 +370,49 @@ function render() {
         return `<div class="card">
           <div style="display:flex;justify-content:space-between;align-items:start">
             <div><b>${esc(r.reed_id)}</b><div class="sub">${esc(r.datums)}${r.log.length ? ` · ${r.log.length} log ieraksti` : ""}</div></div>
-            <span class="pill s-${esc(r.status)}">${esc(r.status)}</span>
+            <div style="display:flex;gap:6px;align-items:center">
+              <button class="chip" style="font-size:12px;padding:2px 10px" onclick="editTarget='${esc(r.reed_id)}';view='edit';render()">✏️</button>
+              <span class="pill s-${esc(r.status)}">${esc(r.status)}</span>
+            </div>
           </div>
           <div class="chips">${[r.cane_manufacturer, r.shape && "shape "+r.shape, r.tip_profiler_setting && "TP "+r.tip_profiler_setting, r.wire_gauge].filter(Boolean).map(v => `<button class="mchip" onclick="selectedMatch=reeds.find(x=>x.reed_id==='${esc(r.reed_id)}');render()">${esc(v)}</button>`).join("")}</div>
           <div class="txt">reitings: ${hist.map((v,i) => `<span style="${i===hist.length-1?"color:#b45309;font-weight:700":""}">${v}${i<hist.length-1?" → ":""}</span>`).join("")}${hist.length?"":"–"}${hist.length?"/10":""} ${sparkline(hist)}</div>
           ${r.log.length ? `<div class="txt" style="font-style:italic;margin-top:6px;color:#78716c">"${esc(r.log[r.log.length-1].text).slice(0,120)}"</div>` : ""}
         </div>`;
       }).join("")}`;
+  }
+
+  else if (view === "edit" && editTarget) {
+    const r = reeds.find(x => x.reed_id === editTarget);
+    if (!r) { view = "library"; render(); return; }
+    app.innerHTML = `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <b style="font-size:16px">✏️ ${esc(r.reed_id)}</b>
+          <button class="chip" onclick="view='library';render()">← Atpakaļ</button>
+        </div>
+        <label>status</label>
+        <div class="chips">${STATUSES.map(s => `<button class="chip ${r.status===s?"on":""}" onclick="editField('status','${s}');render()">${s}</button>`).join("")}</div>
+        <label>reitings_tagad (1–10)</label>
+        <div class="rate">${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${String(r.reitings_tagad)===String(n)?"on":""}" onclick="rateReed(${n})">${n}</button>`).join("")}</div>
+        <div class="grid2">
+          <div><label>shape</label><input value="${esc(r.shape)}" oninput="editField('shape',this.value)"></div>
+          <div><label>cane_manufacturer</label>
+          <select onchange="editField('cane_manufacturer',this.value)"><option value="">–</option>${Object.entries(CANE_PREFIX).map(([c,p]) => `<option value="${esc(c)}" ${r.cane_manufacturer===c?"selected":""}>${esc(c)}</option>`).join("")}</select></div>
+          <div><label>cane_hardness</label><input value="${esc(r.cane_hardness)}" oninput="editField('cane_hardness',this.value)"></div>
+          <div><label>wire_gauge</label><input value="${esc(r.wire_gauge)}" oninput="editField('wire_gauge',this.value)"></div>
+          <div><label>tip_profiler_setting</label><input value="${esc(r.tip_profiler_setting)}" oninput="editField('tip_profiler_setting',this.value)"></div>
+          <div><label>saistīts_ar</label><input value="${esc(r.saistīts_ar)}" oninput="editField('saistīts_ar',this.value)"></div>
+        </div>
+        <button class="primary" onclick="saveEdit()">💾 Saglabāt izmaiņas</button>
+      </div>
+      <div class="card">
+        <b style="font-size:13px">Log (${r.log.length} ieraksti)</b>
+        <label style="margin-top:10px">Jauns ieraksts</label>
+        <textarea id="editlog" rows="2" placeholder="kas notika ar šo mēli…" oninput="editDraft=this.value">${esc(editDraft)}</textarea>
+        <button class="chip" style="margin-top:6px" onclick="addEntryToReed()">+ Pievienot ierakstu</button>
+        ${r.log.map((e,i) => `<div class="entry"><div class="stamp"><span>${esc(e.stamp)}</span><button class="chip" style="padding:0 8px;font-size:11px;color:#b91c1c" onclick="delEntry(${i})">dzēst</button></div>${e.rating ? `<span class="star">★ ${e.rating}/10</span>` : ""}<div class="txt">${esc(e.text)}</div></div>`).join("") || "<p class='txt'>Vēl nav ierakstu.</p>"}
+      </div>`;
   }
 
   else if (view === "settings") {
@@ -381,6 +438,25 @@ function updM(point, side, val) {
 }
 
 function saveToken() { cfg.token = document.getElementById("cfg-token").value.trim(); saveCfg(); toast("Token saglabāts ✓"); render(); }
+
+// ---------------- edit existing reed ----------------
+function editField(k, v) { const r = reeds.find(x => x.reed_id === editTarget); if (r) r[k] = v; }
+function rateReed(n) { const r = reeds.find(x => x.reed_id === editTarget); if (!r) return; r.reitings_tagad = String(r.reitings_tagad) === String(n) ? "" : n; render(); }
+function addEntryToReed() {
+  const t = editDraft.trim();
+  if (!t) return;
+  const r = reeds.find(x => x.reed_id === editTarget);
+  r.log.push({ stamp: nowStamp(), rating: null, text: t });
+  editDraft = "";
+  persist(); render(); toast("Ieraksts pievienots ✓");
+}
+function delEntry(i) { const r = reeds.find(x => x.reed_id === editTarget); r.log.splice(i, 1); persist(); render(); }
+function saveEdit() {
+  const r = reeds.find(x => x.reed_id === editTarget);
+  persist(); toast("Izmaiņas saglabātas ✓");
+  view = "library"; render();
+  if (cfg.token) commitFile(`${cfg.dir}/${r._file || r.reed_id + ".md"}`, reedToMarkdown(r), `reed log: ${r.reed_id} labots`).then(() => toast("Saglabāts GitHub ✓")).catch(e => toast("Kļūda: " + e.message));
+}
 function saveSettings() {
   cfg.token = document.getElementById("cfg-token").value.trim();
   cfg.repo = document.getElementById("cfg-repo").value.trim();

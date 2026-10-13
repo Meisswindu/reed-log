@@ -79,7 +79,8 @@ const saveCfg = () => localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
 const CANE_PREFIX = { "Lavoro":"L", "Danzi":"D", "Rigotti":"R", "Glotin":"G", "Alliaud":"A", "Rieger":"V", "Normunds (kolēģis)":"NZ" };
 const METODES = ["Mateo","vārīšana"];
 const STATUSES = ["testēšanā","aktīva","rezerve","salauzta","nolietota"];
-const MM_POINTS = ["Tip","2mm","4mm","8mm","12mm","16mm","20mm","24mm","Beigas"];
+const MM_POINTS = ["T","2","4","8","12","16","20","24","L"];
+const normPoint = (p) => String(p).toLowerCase().replace(/mm/g,"").replace("beigas","l").replace("tip","t").trim();
 
 // ---------------- data ----------------
 const LS_KEY = "reedlog_data";
@@ -348,12 +349,13 @@ function render() {
         <div class="chips">${STATUSES.map(s => `<button class="chip ${f.status===s?"on":""}" onclick="newForm.status='${s}';render()">${s}</button>`).join("")}</div>
         <label>reitings_sākumā (1–10)</label>
         <div class="rate">${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${f.reitings_sākumā==n?"on":""}" onclick="newForm.reitings_sākumā=${n};render()">${n}</button>`).join("")}</div>
-        <details><summary style="font-size:13px;cursor:pointer;font-weight:600">Mērījumi (Tip → Beigas)</summary>
+        <label>Mērījumi (mikrometrs, T=tip, L=spals)</label>
+        <details open><summary style="font-size:12px;color:#78716c;cursor:pointer">kreisā puse = ar 1. drāti, labā = bez</summary>
           ${MM_POINTS.map(p => {
-            const row = f.m.find(x => x.point === p) || {left:"",right:""};
-            return `<div style="display:flex;gap:6px;margin:4px 0;align-items:center"><span style="font-size:12px;color:#78716c;width:44px">${p}</span>
-            <input style="height:32px" placeholder="kreisā" value="${esc(row.left)}" oninput="updM('${p}','left',this.value)">
-            <input style="height:32px" placeholder="labā" value="${esc(row.right)}" oninput="updM('${p}','right',this.value)"></div>`;
+            const row = f.m.find(x => normPoint(x.point) === p) || {left:"",right:""};
+            return `<div style="display:flex;gap:6px;margin:4px 0;align-items:center"><span style="font-size:12px;color:#78716c;width:20px">${p}</span>
+            <input style="height:32px" placeholder="ar 1. drāti" value="${esc(row.left)}" oninput="updM('${p}','left',this.value)">
+            <input style="height:32px" placeholder="bez" value="${esc(row.right)}" oninput="updM('${p}','right',this.value)"></div>`;
           }).join("")}
         </details>
         <button class="primary" onclick="saveReed()" ${f.reed_id==="…"?"disabled":""}>Izveidot ${esc(f.reed_id)}.md</button>
@@ -395,6 +397,15 @@ function render() {
           <b style="font-size:16px">✏️ ${esc(r.reed_id)}</b>
           <button class="chip" onclick="view='library';render()">← Atpakaļ</button>
         </div>
+        <label>Mērījumi (mikrometrs, T=tip, L=spals)</label>
+        <details open><summary style="font-size:12px;color:#78716c;cursor:pointer">kreisā puse = ar 1. drāti, labā = bez</summary>
+          ${MM_POINTS.map(p => {
+            const row = r.m.find(x => normPoint(x.point) === p) || {left:"",right:""};
+            return `<div style="display:flex;gap:6px;margin:4px 0;align-items:center"><span style="font-size:12px;color:#78716c;width:20px">${p}</span>
+            <input style="height:32px" placeholder="ar 1. drāti" value="${esc(row.left)}" oninput="editM('${p}','left',this.value)">
+            <input style="height:32px" placeholder="bez" value="${esc(row.right)}" oninput="editM('${p}','right',this.value)"></div>`;
+          }).join("")}
+        </details>
         <label>status</label>
         <div class="chips">${STATUSES.map(s => `<button class="chip ${r.status===s?"on":""}" onclick="editField('status','${s}');render()">${s}</button>`).join("")}</div>
         <label>reitings_tagad (1–10)</label>
@@ -436,10 +447,11 @@ function render() {
 
 function updM(point, side, val) {
   const f = newForm;
-  let row = f.m.find(x => x.point === point);
+  let row = f.m.find(x => normPoint(x.point) === point);
   if (!row) { row = { point, left: "", right: "" }; f.m.push(row); }
+  row.point = point;
   row[side] = val;
-  if (!row.left && !row.right) f.m = f.m.filter(x => x.point !== point);
+  if (!row.left && !row.right) f.m = f.m.filter(x => normPoint(x.point) !== point);
   document.getElementById("prev").textContent = reedToMarkdown(f);
 }
 
@@ -456,6 +468,16 @@ function suggestChips(key) {
   const cur = String(r?.[key] || "").trim();
   if (!vals.length) return "";
   return `<div class="chips">${vals.filter(v => v !== cur).map(v => `<button class="chip" onclick="editField('${key}','${v.replace(/'/g,"\\'")}');render()">${esc(v)}</button>`).join("")}</div>`;
+}
+function editM(point, side, val) {
+  const r = reeds.find(x => x.reed_id === editTarget);
+  if (!r) return;
+  let row = r.m.find(x => normPoint(x.point) === point);
+  if (!row) { row = { point, left: "", right: "" }; r.m.push(row); }
+  row.point = point;
+  row[side] = val;
+  if (!row.left && !row.right) r.m = r.m.filter(x => normPoint(x.point) !== point);
+  persist();
 }
 function editField(k, v) { const r = reeds.find(x => x.reed_id === editTarget); if (r) r[k] = v; }
 function rateReed(n) { const r = reeds.find(x => x.reed_id === editTarget); if (!r) return; r.reitings_tagad = String(r.reitings_tagad) === String(n) ? "" : n; render(); }

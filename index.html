@@ -133,7 +133,8 @@ function reedToMarkdown(r) {
   ].filter(Boolean).join("\n");
   const meas = r.m.length ? "\n" + r.m.map(row => `${row.point} - ${row.left}, ${row.right}`).join("\n") + "\n" : "";
   const log = r.log.map(e => `${e.stamp}\n\n${e.rating ? `**Reitings: ${e.rating}/10**\n\n` : ""}${e.text}`).join("\n\n");
-  return fm + "\n## Mērījumi \n" + meas + "\n## Testēšana \n\n## Piezīmes \n\n## Log\n" + (log ? "\n" + log + "\n" : "");
+  const comments = (r.comments || []).map(c => `${c.stamp} — ${c.text}`).join("\n");
+  return fm + "\n## Mērījumi \n" + meas + "\n## Testēšana \n\n## Piezīmes \n" + (comments ? "\n" + comments + "\n" : "") + "\n## Log\n" + (log ? "\n" + log + "\n" : "");
 }
 
 function ratingHistory(r) { const h = []; if (r.reitings_sākumā) h.push(r.reitings_sākumā); r.log.forEach(e => e.rating && h.push(e.rating)); return h; }
@@ -205,13 +206,19 @@ function parseReedMarkdown(text, fallbackId) {
     const mm = line.match(/^\s*([\w]+)\s*-\s*(\d+),\s*(\d+)/);
     if (mm) meas.push({ point: mm[1], left: mm[2], right: mm[3] });
   });
+  const notesSec = (body.split(/## Piezīmes\s*\n/)[1] || "").split(/## /)[0];
+  const notes = [];
+  notesSec.split("\n").forEach(line => {
+    const cm = line.match(/^\s*(\d{4}-\d{2}-\d{2}[ \d:]*)\s*—\s*(.*)/);
+    if (cm && cm[2].trim()) notes.push({ stamp: cm[1].trim(), text: cm[2].trim() });
+  });
   return {
     reed_id: fm.reed_id || fallbackId, datums: fm.datums || today(),
     shape: fm.shape || "", cane_manufacturer: fm.cane_manufacturer || "", metode: fm.metode || "", cane_hardness: fm.cane_hardness || "",
     wire_gauge: fm.wire_gauge || "", tip_profiler_setting: fm.tip_profiler_setting || "",
     status: fm.status || "testēšanā", saistīts_ar: fm.saistīts_ar || "",
     reitings_sākumā: fm.reitings_sākumā || "", reitings_tagad: fm.reitings_tagad || "",
-    m: meas, log, _file: fallbackId + ".md"
+    m: meas, log, comments: notes, _file: fallbackId + ".md"
   };
 }
 
@@ -450,6 +457,15 @@ function render() {
       </div>
 
       <div class="card">
+        <b style="font-size:14px">💬 Piezīmes <span class="sub" style="font-size:11px">(datētas komentāras)</span></b>
+        <input id="newcomment" placeholder="jauna piezīme — datums pieliksies automātiski" style="margin-top:10px" onkeydown="if(event.key==='Enter')addComment()">
+        <button class="chip" style="margin-top:6px" onclick="addComment()">+ Pievienot piezīmi</button>
+        <div style="margin-top:10px">
+        ${(r.comments || []).map((c,i) => `<div class="entry"><div class="stamp"><span>${esc(c.stamp)}</span><button class="chip" style="padding:0 8px;font-size:11px;color:#b91c1c" onclick="delComment(${i})">dzēst</button></div><div class="txt">${esc(c.text)}</div></div>`).join("") || "<p class='txt'>Vēl nav piezīmju.</p>"}
+        </div>
+      </div>
+
+      <div class="card">
         <b style="font-size:14px">📝 Log <span class="sub" style="font-size:11px">(${r.log.length} ieraksti)</span></b>
         <label style="margin-top:10px">Jauns ieraksts</label>
         <textarea id="editlog" rows="2" placeholder="kas notika ar šo mēli…" oninput="editDraft=this.value">${esc(editDraft)}</textarea>
@@ -521,6 +537,19 @@ function addEntryToReed() {
   persist(); render(); toast("Ieraksts pievienots ✓");
 }
 function delEntry(i) { const r = reeds.find(x => x.reed_id === editTarget); r.log.splice(i, 1); persist(); render(); }
+function addComment() {
+  const inp = document.getElementById("newcomment");
+  const t = (inp?.value || "").trim();
+  if (!t) return;
+  const r = reeds.find(x => x.reed_id === editTarget);
+  r.comments = r.comments || [];
+  r.comments.push({ stamp: today(), text: t });
+  persist(); render(); toast("Piezīme pievienota ✓");
+}
+function delComment(i) {
+  const r = reeds.find(x => x.reed_id === editTarget);
+  r.comments.splice(i, 1); persist(); render();
+}
 function saveEdit() {
   const r = reeds.find(x => x.reed_id === editTarget);
   persist(); toast("Izmaiņas saglabātas ✓");

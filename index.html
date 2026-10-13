@@ -402,13 +402,13 @@ function render() {
         <label>metode (kā taisīja blanku)</label>
         <div class="chips">${METODES.map(mm => `<button class="chip ${r.metode===mm?"on":""}" onclick="editField('metode','${mm}');render()">${mm}</button>`).join("")}</div>
         <div class="grid2">
-          <div><label>shape</label><input value="${esc(r.shape)}" oninput="editField('shape',this.value)"></div>
+          <div><label>shape</label>${suggestChips("shape")}<input value="${esc(r.shape)}" oninput="editField('shape',this.value)"></div>
           <div><label>cane_manufacturer</label>
           <select onchange="editField('cane_manufacturer',this.value)"><option value="">–</option>${Object.entries(CANE_PREFIX).map(([c,p]) => `<option value="${esc(c)}" ${r.cane_manufacturer===c?"selected":""}>${esc(c)}</option>`).join("")}</select></div>
-          <div><label>cane_hardness</label><input value="${esc(r.cane_hardness)}" oninput="editField('cane_hardness',this.value)"></div>
-          <div><label>wire_gauge</label><input value="${esc(r.wire_gauge)}" oninput="editField('wire_gauge',this.value)"></div>
-          <div><label>tip_profiler_setting</label><input value="${esc(r.tip_profiler_setting)}" oninput="editField('tip_profiler_setting',this.value)"></div>
-          <div><label>saistīts_ar</label><input value="${esc(r.saistīts_ar)}" oninput="editField('saistīts_ar',this.value)"></div>
+          <div><label>cane_hardness</label>${suggestChips("cane_hardness")}<input value="${esc(r.cane_hardness)}" oninput="editField('cane_hardness',this.value)"></div>
+          <div><label>wire_gauge</label>${suggestChips("wire_gauge")}<input value="${esc(r.wire_gauge)}" oninput="editField('wire_gauge',this.value)"></div>
+          <div><label>tip_profiler_setting</label>${suggestChips("tip_profiler_setting")}<input value="${esc(r.tip_profiler_setting)}" oninput="editField('tip_profiler_setting',this.value)"></div>
+          <div><label>saistīts_ar</label>${suggestChips("saistīts_ar")}<input value="${esc(r.saistīts_ar)}" oninput="editField('saistīts_ar',this.value)"></div>
         </div>
         <button class="primary" onclick="saveEdit()">💾 Saglabāt izmaiņas</button>
       </div>
@@ -446,6 +446,17 @@ function updM(point, side, val) {
 function saveToken() { cfg.token = document.getElementById("cfg-token").value.trim(); saveCfg(); toast("Token saglabāts ✓"); render(); }
 
 // ---------------- edit existing reed ----------------
+function usedValues(key) {
+  const vals = [...new Set(reeds.map(r => String(r[key] || "").trim()).filter(Boolean))];
+  return vals;
+}
+function suggestChips(key) {
+  const vals = usedValues(key);
+  const r = reeds.find(x => x.reed_id === editTarget);
+  const cur = String(r?.[key] || "").trim();
+  if (!vals.length) return "";
+  return `<div class="chips">${vals.filter(v => v !== cur).map(v => `<button class="chip" onclick="editField('${key}','${v.replace(/'/g,"\\'")}');render()">${esc(v)}</button>`).join("")}</div>`;
+}
 function editField(k, v) { const r = reeds.find(x => x.reed_id === editTarget); if (r) r[k] = v; }
 function rateReed(n) { const r = reeds.find(x => x.reed_id === editTarget); if (!r) return; r.reitings_tagad = String(r.reitings_tagad) === String(n) ? "" : n; render(); }
 function addEntryToReed() {

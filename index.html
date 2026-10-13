@@ -139,7 +139,7 @@ function reedToMarkdown(r) {
   return fm + "\n## Mērījumi \n" + meas + "\n## Testēšana \n\n## Piezīmes \n" + (comments ? "\n" + comments + "\n" : "") + "\n## Log\n" + (log ? "\n" + log + "\n" : "");
 }
 
-function ratingHistory(r) { const h = []; if (r.reitings_sākumā) h.push(r.reitings_sākumā); r.log.forEach(e => e.rating && h.push(e.rating)); return h; }
+function ratingHistory(r) { const h = []; if (r.reitings_sākumā) h.push(r.reitings_sākumā); r.log.forEach(e => e.rating && h.push(e.rating)); if (r.reitings_tagad && String(r.reitings_tagad) !== String(h[h.length-1] ?? "")) h.push(r.reitings_tagad); return h; }
 function sparkline(values) {
   if (values.length < 2) return "";
   const w=100, h=24, pts = values.map((v,i)=>`${(i/(values.length-1))*w},${h-(v/10)*h}`).join(" ");

@@ -77,6 +77,7 @@ const cfg = Object.assign({ token: "", owner: "Meisswindu", repo: "obsidian-doma
 const saveCfg = () => localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
 
 const CANE_PREFIX = { "Lavoro":"L", "Danzi":"D", "Rigotti":"R", "Glotin":"G", "Alliaud":"A", "Rieger":"V", "Normunds (kolēģis)":"NZ" };
+const METODES = ["Mateo","Rieger","standarta","C bulca","apvilkta"];
 const STATUSES = ["testēšanā","aktīva","rezerve","salauzta","nolietota"];
 const MM_POINTS = ["Tip","2mm","4mm","8mm","12mm","16mm","20mm","24mm","Beigas"];
 
@@ -113,6 +114,7 @@ function reedToMarkdown(r) {
     `datums: ${r.datums}`,
     r.shape && `shape: "${r.shape}"`,
     r.cane_manufacturer && `cane_manufacturer: ${r.cane_manufacturer}`,
+    r.metode && `metode: ${r.metode}`,
     r.cane_hardness && `cane_hardness: "${r.cane_hardness}"`,
     r.wire_gauge && `wire_gauge: ${r.wire_gauge}`,
     r.tip_profiler_setting && `tip_profiler_setting: "${r.tip_profiler_setting}"`,
@@ -198,7 +200,7 @@ function parseReedMarkdown(text, fallbackId) {
   });
   return {
     reed_id: fm.reed_id || fallbackId, datums: fm.datums || today(),
-    shape: fm.shape || "", cane_manufacturer: fm.cane_manufacturer || "", cane_hardness: fm.cane_hardness || "",
+    shape: fm.shape || "", cane_manufacturer: fm.cane_manufacturer || "", metode: fm.metode || "", cane_hardness: fm.cane_hardness || "",
     wire_gauge: fm.wire_gauge || "", tip_profiler_setting: fm.tip_profiler_setting || "",
     status: fm.status || "testēšanā", saistīts_ar: fm.saistīts_ar || "",
     reitings_sākumā: fm.reitings_sākumā || "", reitings_tagad: fm.reitings_tagad || "",
@@ -225,7 +227,7 @@ function go(v) {
 }
 
 function startNew() {
-  newForm = { reed_id: "…", datums: today(), shape: "9", cane_manufacturer: "", cane_hardness: "", wire_gauge: "", tip_profiler_setting: "", status: "testēšanā", saistīts_ar: "", reitings_sākumā: "", reitings_tagad: "", m: [], log: [] };
+  newForm = { reed_id: "…", datums: today(), shape: "9", cane_manufacturer: "", metode: "", cane_hardness: "", wire_gauge: "", tip_profiler_setting: "", status: "testēšanā", saistīts_ar: "", reitings_sākumā: "", reitings_tagad: "", m: [], log: [] };
 }
 
 function setForm(k, v) {
@@ -340,6 +342,8 @@ function render() {
           <div><label>tip_profiler_setting</label><input placeholder="0.5" value="${esc(f.tip_profiler_setting)}" oninput="newForm.tip_profiler_setting=this.value"></div>
           <div><label>saistīts_ar</label><input placeholder="[[...]]" value="${esc(f.saistīts_ar)}" oninput="newForm.saistīts_ar=this.value"></div>
         </div>
+        <label>metode (kā taisīja blanku)</label>
+        <div class="chips">${METODES.map(mm => `<button class="chip ${f.metode===mm?"on":""}" onclick="newForm.metode='${mm}';render()">${mm}</button>`).join("")}</div>
         <label>status</label>
         <div class="chips">${STATUSES.map(s => `<button class="chip ${f.status===s?"on":""}" onclick="newForm.status='${s}';render()">${s}</button>`).join("")}</div>
         <label>reitings_sākumā (1–10)</label>
@@ -375,7 +379,7 @@ function render() {
               <span class="pill s-${esc(r.status)}">${esc(r.status)}</span>
             </div>
           </div>
-          <div class="chips">${[r.cane_manufacturer, r.shape && "shape "+r.shape, r.tip_profiler_setting && "TP "+r.tip_profiler_setting, r.wire_gauge].filter(Boolean).map(v => `<button class="mchip" onclick="selectedMatch=reeds.find(x=>x.reed_id==='${esc(r.reed_id)}');render()">${esc(v)}</button>`).join("")}</div>
+          <div class="chips">${[r.cane_manufacturer, r.metode && "metode: "+r.metode, r.shape && "shape "+r.shape, r.tip_profiler_setting && "TP "+r.tip_profiler_setting, r.wire_gauge].filter(Boolean).map(v => `<button class="mchip" onclick="selectedMatch=reeds.find(x=>x.reed_id==='${esc(r.reed_id)}');render()">${esc(v)}</button>`).join("")}</div>
           <div class="txt">reitings: ${hist.map((v,i) => `<span style="${i===hist.length-1?"color:#b45309;font-weight:700":""}">${v}${i<hist.length-1?" → ":""}</span>`).join("")}${hist.length?"":"–"}${hist.length?"/10":""} ${sparkline(hist)}</div>
           ${r.log.length ? `<div class="txt" style="font-style:italic;margin-top:6px;color:#78716c">"${esc(r.log[r.log.length-1].text).slice(0,120)}"</div>` : ""}
         </div>`;
@@ -395,6 +399,8 @@ function render() {
         <div class="chips">${STATUSES.map(s => `<button class="chip ${r.status===s?"on":""}" onclick="editField('status','${s}');render()">${s}</button>`).join("")}</div>
         <label>reitings_tagad (1–10)</label>
         <div class="rate">${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${String(r.reitings_tagad)===String(n)?"on":""}" onclick="rateReed(${n})">${n}</button>`).join("")}</div>
+        <label>metode (kā taisīja blanku)</label>
+        <div class="chips">${METODES.map(mm => `<button class="chip ${r.metode===mm?"on":""}" onclick="editField('metode','${mm}');render()">${mm}</button>`).join("")}</div>
         <div class="grid2">
           <div><label>shape</label><input value="${esc(r.shape)}" oninput="editField('shape',this.value)"></div>
           <div><label>cane_manufacturer</label>

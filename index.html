@@ -414,7 +414,7 @@ function render() {
         </details>
         <label>status</label>
         <div class="chips">${STATUSES.map(s => `<button class="chip ${r.status===s?"on":""}" onclick="editField('status','${s}');render()">${s}</button>`).join("")}</div>
-        <label>reitings_tagad (1–10)</label>
+        <label>reitings_tagad (1–10) ${r.reitings_tagad ? `— tagad: <span style="color:#b45309">${esc(r.reitings_tagad)}/10</span>` : "— nav vēl"}</label>
         <div class="rate">${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${String(r.reitings_tagad)===String(n)?"on":""}" onclick="rateReed(${n})">${n}</button>`).join("")}</div>
         <label>metode (kā taisīja blanku)</label>
         <div class="chips">${METODES.map(mm => `<button class="chip ${r.metode===mm?"on":""}" onclick="editField('metode','${mm}');render()">${mm}</button>`).join("")}</div>
@@ -484,9 +484,12 @@ function editM(point, side, val) {
   row[side] = val;
   if (!row.left && !row.right) r.m = r.m.filter(x => normPoint(x.point) !== point);
   persist();
+}function editField(k, v) { const r = reeds.find(x => x.reed_id === editTarget); if (r) { r[k] = v; persist(); } }
+function rateReed(n) {
+  const r = reeds.find(x => x.reed_id === editTarget); if (!r) return;
+  r.reitings_tagad = String(r.reitings_tagad) === String(n) ? "" : n;
+  persist(); render();
 }
-function editField(k, v) { const r = reeds.find(x => x.reed_id === editTarget); if (r) r[k] = v; }
-function rateReed(n) { const r = reeds.find(x => x.reed_id === editTarget); if (!r) return; r.reitings_tagad = String(r.reitings_tagad) === String(n) ? "" : n; render(); }
 function addEntryToReed() {
   const t = editDraft.trim();
   if (!t) return;

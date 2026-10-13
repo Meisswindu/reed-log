@@ -327,7 +327,9 @@ function render() {
       <div class="card"><b style="font-size:13px">⚙️ GitHub savienojums</b>
         <p class="txt">${cfg.token ? "Token ievadīts — ieraksti tiks saglabāti tavā repo." : "Bez token ieraksti saglabājas tikai šajā pārlūkā. Ievadi token, lai rakstītu straight uz Obsidian vault."}</p>
         <div style="display:flex;gap:8px"><input id="cfg-token" type="password" placeholder="GitHub token (fine-grained)" value="${esc(cfg.token)}" style="flex:1"><button class="chip" onclick="saveToken()">Saglabāt</button></div>
-        ${cfg.token ? `<button class="chip" style="margin-top:10px" onclick="doPull()">⬇️ Ielādēt mēles no GitHub</button>` : ""}
+        ${cfg.token ? `<button class="chip" style="margin-top:10px" onclick="doPull()">⬇️ Ielādēt mēles no GitHub</button>
+        <button class="chip" style="margin-top:10px" onclick="testConnection()">🔧 Testēt savienojumu</button>
+        <pre id="testresult" style="display:none;margin-top:10px;max-height:200px"></pre>` : ""}
         <p class="note">Token: github.com → Settings → Developer settings → Personal access tokens → Fine-grained → tikai obsidian-domas-utt repo, atļauja "Contents: Read and write".</p>
       </div>`;
   }
@@ -579,7 +581,35 @@ function saveSettings() {
 }
 async function doPull() {
   try { toast("Ielādēju…"); await pullFromGithub(); toast(`Ielādētas ${reeds.length} mēles ✓`); render(); }
-  catch (e) { toast("Kļūda: " + e.message); }
+  catch (e) { syncFail(e.message); }
+}
+
+async function testConnection() {
+  const box = document.getElementById("testresult");
+  const log = (ok, msg) => { box.style.display = "block"; box.innerHTML += (ok ? "✅ " : "❌ ") + esc(msg) + "\n"; };
+  box.style.display = "block"; box.innerHTML = "";
+  if (!cfg.token) { log(false, "Nav token. Ievadi token ⚙️ sadaļā."); return; }
+  log(true, "Token ir (" + cfg.token.slice(0, 7) + "…)");
+  try {
+    const repo = await gh(`/repos/${cfg.owner}/${cfg.repo}`);
+    log(true, `Repo atrasts: ${repo.full_name} (${repo.private ? "privāts" : "publisks"})`);
+  } catch (e) { log(false, "Repo nav pieejams ar šo token: " + e.message); return; }
+  try {
+    const dirPath = cfg.dir.split("/").map(encodeURIComponent).join("/");
+    const dir = await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${dirPath}?ref=${cfg.branch}`);
+    log(true, `Mape "${cfg.dir}" nolasīta — ${dir.filter(f=>f.name.endsWith(".md")).length} .md faili`);
+  } catch (e) { log(false, "Mapi nevar nolasīt (pārbaudiet ceļu/branch): " + e.message); return; }
+  try {
+    const testPath = `${cfg.dir}/_test_${Date.now()}.md`;
+    await commitFile(testPath, "test", "reed log: connection test");
+    log(true, "Rakstīšana strādā — izveidoju un dzēšu testa failu");
+    const sha = (await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${encPath(testPath)}`)).sha;
+    await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${encPath(testPath)}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: "reed log: cleanup test", sha, branch: cfg.branch }) });
+    log(true, "Testa fails izdzēsts ✓ — viss strādā!");
+  } catch (e) {
+    log(false, "RAKSTĪŠANA NEDARBĒJAS: " + e.message);
+    log(false, "Visticamāk: token nav \"Contents: Read and write\" atļauja. github.com → Settings → Developer settings → jūsu tokens → Repository permissions → Contents = Read and write.");
+  }
 }
 
 render();

@@ -1,1 +1,399 @@
-[object Object]
+
+<!doctype html>
+<html lang="lv">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mēles — Reed Log</title>
+<style>
+  :root { font-family: system-ui, sans-serif; background:#faf6ef; color:#292524; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:16px; }
+  .wrap { max-width:480px; margin:0 auto; }
+  h1 { font-size:20px; margin:0; }
+  .sub { font-size:12px; color:#78716c; }
+  .tabs { display:flex; gap:4px; margin:12px 0; }
+  .tabs button { flex:1; padding:8px 4px; border:1px solid #d6d3d1; background:#fff; border-radius:10px; font-size:13px; cursor:pointer; }
+  .tabs button.on { background:#f59e0b; color:#fff; border-color:#b45309; font-weight:600; }
+  .card { background:#fff; border:1px solid #e7e5e4; border-radius:16px; padding:16px; margin-bottom:12px; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+  .bigbtn { display:flex; align-items:center; gap:14px; width:100%; text-align:left; padding:20px; border:2px solid #d6d3d1; border-radius:16px; background:#fff; cursor:pointer; font-size:16px; margin-bottom:10px; }
+  .bigbtn:hover { border-color:#f59e0b; background:#fffbeb; }
+  .bigbtn .ico { font-size:32px; }
+  .bigbtn .desc { font-size:12px; color:#78716c; font-weight:400; }
+  label { font-size:13px; font-weight:600; display:block; margin:10px 0 4px; }
+  input, select, textarea { width:100%; padding:8px; border:1px solid #d6d3d1; border-radius:8px; font-size:14px; background:#fff; font-family:inherit; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .rate { display:grid; grid-template-columns:repeat(10,1fr); gap:4px; margin:4px 0 8px; }
+  .rate button { padding:8px 0; border:1px solid #d6d3d1; border-radius:8px; background:#fff; font-weight:600; cursor:pointer; font-size:13px; }
+  .rate button.on { background:#f59e0b; color:#fff; border-color:#b45309; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0; }
+  .chip { padding:6px 12px; border:1px solid #d6d3d1; border-radius:999px; background:#fff; font-size:13px; cursor:pointer; }
+  .chip.on { background:#f59e0b; color:#fff; border-color:#b45309; }
+  .primary { width:100%; padding:12px; background:#f59e0b; color:#fff; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; margin-top:12px; }
+  .primary:disabled { background:#d6d3d1; cursor:default; }
+  .pill { font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid; }
+  .s-testēšanā { background:#dbeafe; color:#1e40af; border-color:#93c5fd; }
+  .s-aktīva { background:#dcfce7; color:#166534; border-color:#86efac; }
+  .s-rezerve { background:#fef3c7; color:#92400e; border-color:#fcd34d; }
+  .s-salauzta { background:#fee2e2; color:#991b1b; border-color:#fca5a5; }
+  .s-nolietota { background:#f5f5f4; color:#57534e; border-color:#d6d3d1; }
+  .mchip { font-size:12px; background:#fffbeb; border:1px solid #fcd34d; border-radius:999px; padding:2px 8px; cursor:pointer; }
+  .entry { border-bottom:1px solid #f5f5f4; padding:8px 0; }
+  .entry:last-child { border:0; }
+  .stamp { font-size:10px; color:#a8a29e; display:flex; justify-content:space-between; }
+  .txt { font-size:12px; color:#44403c; margin-top:2px; }
+  .star { font-size:10px; font-weight:700; color:#b45309; background:#fffbeb; border:1px solid #fcd34d; border-radius:999px; padding:1px 7px; }
+  pre { font-size:11px; background:#292524; color:#fef3c7; border-radius:10px; padding:12px; overflow:auto; white-space:pre-wrap; }
+  .spark { vertical-align:middle; margin-left:6px; }
+  .matchrow { display:flex; justify-content:space-between; align-items:center; background:#fff; border:1px solid #fcd34d; border-radius:10px; padding:6px 10px; margin-top:6px; font-size:13px; }
+  .note { font-size:11px; color:#a8a29e; margin-top:6px; }
+  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#292524; color:#fff; padding:10px 20px; border-radius:999px; font-size:13px; display:none; z-index:50; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <h1>🎵 Mēles — Reed Log</h1>
+      <div class="sub" id="subtitle">Fagots/Mēles/Reeds</div>
+    </div>
+    <button class="chip" onclick="go('settings')">⚙️</button>
+  </div>
+  <div class="tabs">
+    <button id="t-sakums" onclick="go('sakums')">🏠 Sākums</button>
+    <button id="t-log" onclick="go('log')">⚡ Log</button>
+    <button id="t-new" onclick="go('new')">+ Jauna</button>
+    <button id="t-lib" onclick="go('library')">Bibliotēka</button>
+  </div>
+  <div id="app"></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------------- config (localStorage) ----------------
+const CFG_KEY = "reedlog_cfg";
+const cfg = Object.assign({ token: "", owner: "Meisswindu", repo: "obsidian-domas-utt", dir: "Fagots/Mēles/Reeds", branch: "main" }, JSON.parse(localStorage.getItem(CFG_KEY) || "{}"));
+const saveCfg = () => localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+
+const CANE_PREFIX = { "Lavoro":"L", "Danzi":"D", "Rigotti":"R", "Glotin":"G", "Alliaud":"A", "Rieger":"V", "Normunds (kolēģis)":"NZ" };
+const STATUSES = ["testēšanā","aktīva","rezerve","salauzta","nolietota"];
+const MM_POINTS = ["Tip","2mm","4mm","8mm","12mm","16mm","20mm","24mm","Beigas"];
+
+// ---------------- data ----------------
+const LS_KEY = "reedlog_data";
+let reeds = JSON.parse(localStorage.getItem(LS_KEY) || "null") || [
+  { reed_id:"L001", datums:"2026-07-29", shape:"9", cane_manufacturer:"Lavoro", cane_hardness:"", wire_gauge:"copper, steel, steel", tip_profiler_setting:"", status:"testēšanā", saistīts_ar:"", reitings_sākumā:5, reitings_tagad:7, m:[], log:[
+    { stamp:"2026-08-01", rating:null, text:"Mī nedaudz nestabils. Nav crispy. Paspēlēju garās notis." },
+    { stamp:"2026-08-13 12:18", rating:6, text:"Nogriezu galu, lai ir 28 spals. nedaudz mī vēl nestabils, bet ir daudz labāk." },
+    { stamp:"2026-08-15 11:59", rating:4, text:"Šodien šķiet diezgan mushy un neflexa. pēc mērījumiem par smagu." } ] },
+  { reed_id:"L004", datums:"2026-07-30", shape:"9", cane_manufacturer:"Lavoro", cane_hardness:"", wire_gauge:"", tip_profiler_setting:"0.5", status:"testēšanā", saistīts_ar:"", reitings_sākumā:7, reitings_tagad:"", m:[{point:"Tip",left:38,right:37},{point:"2mm",left:51,right:51},{point:"4mm",left:59,right:57},{point:"8mm",left:78,right:76}], log:[
+    { stamp:"2026-08-13 13:17", rating:null, text:"Pievilku abas drātis. pēc pievilkšanas šķiet smaga. nē, ir forša pat pēc drātim." },
+    { stamp:"2026-08-13 20:06", rating:null, text:"Izspēlēju Clark divās oktāvās, Bišku neflexa un apakšas par augstu, bet ir ok." } ] },
+  { reed_id:"D001", datums:"2026-08-20", shape:"9", cane_manufacturer:"Danzi", cane_hardness:"hard", wire_gauge:"07 Rieger", tip_profiler_setting:"0.5", status:"aktīva", saistīts_ar:"", reitings_sākumā:6, reitings_tagad:8, m:[], log:[
+    { stamp:"2026-08-22", rating:null, text:"Labākā koncertmēle pagaidām. Stabila visa oktāva." } ] },
+];
+const persist = () => localStorage.setItem(LS_KEY, JSON.stringify(reeds));
+
+// ---------------- helpers ----------------
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" }[c]));
+const today = () => new Date().toISOString().slice(0,10);
+const nowStamp = () => { const d = new Date(), p = n => String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+
+function nextReedId(manufacturer) {
+  const prefix = CANE_PREFIX[manufacturer] || (manufacturer || "X").slice(0,1).toUpperCase();
+  const nums = reeds.map(r => /^([A-Z]+)(\d+)$/.exec(String(r.reed_id).trim())).filter(Boolean).filter(m => m[1] === prefix).map(m => parseInt(m[2],10));
+  return prefix + String((nums.length ? Math.max(...nums) : 0) + 1).padStart(3,"0");
+}
+
+function reedToMarkdown(r) {
+  const fm = [
+    "---","tags:","  - reed",
+    `reed_id: "${r.reed_id}"`,
+    `datums: ${r.datums}`,
+    r.shape && `shape: "${r.shape}"`,
+    r.cane_manufacturer && `cane_manufacturer: ${r.cane_manufacturer}`,
+    r.cane_hardness && `cane_hardness: "${r.cane_hardness}"`,
+    r.wire_gauge && `wire_gauge: ${r.wire_gauge}`,
+    r.tip_profiler_setting && `tip_profiler_setting: "${r.tip_profiler_setting}"`,
+    `status: ${r.status}`,
+    r.saistīts_ar && `saistīts_ar: ${r.saistīts_ar}`,
+    r.reitings_sākumā && `reitings_sākumā: "${r.reitings_sākumā}"`,
+    r.reitings_tagad && `reitings_tagad: "${r.reitings_tagad}"`,
+    "---"
+  ].filter(Boolean).join("\n");
+  const meas = r.m.length ? "\n" + r.m.map(row => `${row.point} - ${row.left}, ${row.right}`).join("\n") + "\n" : "";
+  const log = r.log.map(e => `${e.stamp}\n\n${e.rating ? `**Reitings: ${e.rating}/10**\n\n` : ""}${e.text}`).join("\n\n");
+  return fm + "\n## Mērījumi \n" + meas + "\n## Testēšana \n\n## Piezīmes \n\n## Log\n" + (log ? "\n" + log + "\n" : "");
+}
+
+function ratingHistory(r) { const h = []; if (r.reitings_sākumā) h.push(r.reitings_sākumā); r.log.forEach(e => e.rating && h.push(e.rating)); return h; }
+function sparkline(values) {
+  if (values.length < 2) return "";
+  const w=100, h=24, pts = values.map((v,i)=>`${(i/(values.length-1))*w},${h-(v/10)*h}`).join(" ");
+  return `<svg class="spark" width="${w}" height="${h}"><polyline points="${pts}" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${w}" cy="${h-(values[values.length-1]/10)*h}" r="2.5" fill="#b45309"/></svg>`;
+}
+
+// ---------------- GitHub API ----------------
+async function gh(path, opts = {}) {
+  if (!cfg.token) throw new Error("Nav ievadīts GitHub token (⚙️ iestatījumi)");
+  const res = await fetch(`https://api.github.com${path}`, Object.assign({
+    headers: { "Authorization": `Bearer ${cfg.token}`, "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" }
+  }, opts));
+  if (!res.ok) { const t = await res.text(); throw new Error(`GitHub ${res.status}: ${t.slice(0,200)}`); }
+  return res.json();
+}
+
+async function commitFile(path, content, message) {
+  let sha = null;
+  try { const ex = await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${encodeURIComponent(path)}?ref=${cfg.branch}`); sha = ex.sha; } catch (e) { /* new file */ }
+  await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${encodeURIComponent(path)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, content: btoa(unescape(encodeURIComponent(content))), sha, branch: cfg.branch })
+  });
+}
+
+async function pullFromGithub() {
+  const dirPath = cfg.dir.split("/").map(encodeURIComponent).join("/");
+  const dir = await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${dirPath}?ref=${cfg.branch}`);
+  const out = [];
+  for (const f of dir.filter(x => x.name.endsWith(".md"))) {
+    try {
+      const blob = await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${encodeURIComponent(f.path)}?ref=${cfg.branch}`);
+      const text = decodeURIComponent(escape(atob(blob.content)));
+      const r = parseReedMarkdown(text, f.name.replace(/\.md$/,""));
+      if (r) out.push(r);
+    } catch (e) { /* skip */ }
+  }
+  out.sort((a,b) => a.reed_id.localeCompare(b.reed_id));
+  reeds = out; persist();
+}
+
+function parseReedMarkdown(text, fallbackId) {
+  const m = text.match(/^---\n([\s\S]*?)\n---/);
+  if (!m) return null;
+  const fm = {};
+  m[1].split("\n").forEach(line => {
+    const kv = line.match(/^(\w+):\s*(.*)$/);
+    if (kv) fm[kv[1]] = kv[2].replace(/^"|"$/g,"").trim();
+  });
+  const body = text.slice(m[0].length);
+  const logSec = body.split(/## Log\s*\n/)[1] || "";
+  const log = [];
+  const chunks = logSec.split(/\n(?=\d{4}-\d{2}-\d{2})/).filter(s => s.trim());
+  for (const c of chunks) {
+    const stamp = (c.match(/\d{4}-\d{2}-\d{2}[ \d:]*/) || [""])[0].trim();
+    let rest = c.slice(stamp.length).trim();
+    let rating = null;
+    const rm = rest.match(/\*\*Reitings:\s*(\d+)\/10\*\*/);
+    if (rm) { rating = parseInt(rm[1],10); rest = rest.replace(rm[0],"").trim(); }
+    if (stamp) log.push({ stamp, rating, text: rest });
+  }
+  const measSec = (body.split(/## Mērījumi\s*\n/)[1] || "").split(/## /)[0];
+  const meas = [];
+  measSec.split("\n").forEach(line => {
+    const mm = line.match(/^\s*([\w]+)\s*-\s*(\d+),\s*(\d+)/);
+    if (mm) meas.push({ point: mm[1], left: mm[2], right: mm[3] });
+  });
+  return {
+    reed_id: fm.reed_id || fallbackId, datums: fm.datums || today(),
+    shape: fm.shape || "", cane_manufacturer: fm.cane_manufacturer || "", cane_hardness: fm.cane_hardness || "",
+    wire_gauge: fm.wire_gauge || "", tip_profiler_setting: fm.tip_profiler_setting || "",
+    status: fm.status || "testēšanā", saistīts_ar: fm.saistīts_ar || "",
+    reitings_sākumā: fm.reitings_sākumā || "", reitings_tagad: fm.reitings_tagad || "",
+    m: meas, log, _file: fallbackId + ".md"
+  };
+}
+
+// ---------------- UI ----------------
+let view = "sakums";
+let selectedMatch = null;
+let quickRating = 0;
+let logTarget = reeds.length ? reeds[0].reed_id : "";
+let newForm = null;
+
+function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.style.display = "block"; setTimeout(() => t.style.display = "none", 2500); }
+
+function go(v) {
+  if (v === "new") startNew();
+  view = v; render();
+}
+
+function startNew() {
+  newForm = { reed_id: "…", datums: today(), shape: "9", cane_manufacturer: "", cane_hardness: "", wire_gauge: "", tip_profiler_setting: "", status: "testēšanā", saistīts_ar: "", reitings_sākumā: "", reitings_tagad: "", m: [], log: [] };
+}
+
+function setForm(k, v) {
+  newForm[k] = v;
+  if (k === "cane_manufacturer") newForm.reed_id = v ? nextReedId(v) : "…";
+  render();
+}
+
+function saveReed() {
+  reeds.push(newForm); persist();
+  const saved = newForm;
+  toast(`Izveidots ${saved.reed_id} ✓`);
+  view = "library"; render();
+  if (cfg.token) commitFile(`${cfg.dir}/${saved.reed_id}.md`, reedToMarkdown(saved), `reed log: jauna mēle ${saved.reed_id}`).then(() => toast("Saglabāts GitHub ✓")).catch(e => toast("Kļūda: " + e.message));
+}
+
+function saveLog() {
+  const txt = document.getElementById("logtext").value.trim();
+  if (!quickRating && !txt) return;
+  const r = reeds.find(x => x.reed_id === logTarget);
+  const entry = { stamp: nowStamp(), rating: quickRating || null, text: txt };
+  r.log.push(entry);
+  if (quickRating) r.reitings_tagad = quickRating;
+  persist();
+  quickRating = 0;
+  toast("Pievienots Log ✓");
+  render();
+  if (cfg.token) commitFile(`${cfg.dir}/${r._file || r.reed_id + ".md"}`, reedToMarkdown(r), `reed log: ${r.reed_id} atjaunināts`).then(() => toast("Saglabāts GitHub ✓")).catch(e => toast("Kļūda: " + e.message));
+}
+
+function similarity(a, b) {
+  if (a.reed_id === b.reed_id) return 0;
+  let s = 0;
+  if (a.cane_manufacturer && a.cane_manufacturer === b.cane_manufacturer) s += 3;
+  if (a.shape && a.shape === b.shape) s += 1;
+  if (a.tip_profiler_setting && a.tip_profiler_setting === b.tip_profiler_setting) s += 2;
+  if (a.wire_gauge && a.wire_gauge === b.wire_gauge) s += 2;
+  s += Math.max(0, 4 - Math.abs((parseInt(a.reitings_tagad)||parseInt(a.reitings_sākumā)||0) - (parseInt(b.reitings_tagad)||parseInt(b.reitings_sākumā)||0)));
+  return s;
+}
+
+function render() {
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("on"));
+  const tabId = { sakums:"t-sakums", log:"t-log", new:"t-new", library:"t-lib", settings:"t-sakums" }[view] || "t-sakums";
+  document.getElementById(tabId).classList.add("on");
+  const app = document.getElementById("app");
+  document.getElementById("subtitle").textContent = `Fagots/Mēles/Reeds · ${reeds.length} mēles` + (cfg.token ? " · 🔗 GitHub" : " · lokāli");
+
+  if (view === "sakums") {
+    const rot = reeds.filter(r => r.status === "testēšanā" || r.status === "aktīva");
+    app.innerHTML = `
+      <button class="bigbtn" onclick="go('new')"><span class="ico">🎵</span><div><b>Jauna mēle</b><div class="desc">Reģistrē tikko taisītu vai saņemtu mēli</div></div></button>
+      <button class="bigbtn" onclick="go('library')"><span class="ico">🔎</span><div><b>Meklēt veco</b><div class="desc">Bibliotēka, reitingi un līdzīgās mēles</div></div></button>
+      <button class="bigbtn" style="padding:14px" onclick="go('log')"><span class="ico" style="font-size:22px">⚡</span><div><b>Ātrais log</b><div class="desc">Pieraksti notikumu vai pārreitē mēli (2 tap)</div></div></button>
+      ${rot.length ? `<div class="card" style="background:#fffbeb;border-color:#fcd34d"><b style="font-size:12px">Tagad rotācijā:</b><div class="chips">${rot.map(r => `<span class="pill s-${esc(r.status)}">${esc(r.reed_id)} · ${esc(r.reitings_tagad || "–")}/10</span>`).join("")}</div></div>` : ""}
+      <div class="card"><b style="font-size:13px">⚙️ GitHub savienojums</b>
+        <p class="txt">${cfg.token ? "Token ievadīts — ieraksti tiks saglabāti tavā repo." : "Bez token ieraksti saglabājas tikai šajā pārlūkā. Ievadi token, lai rakstītu straight uz Obsidian vault."}</p>
+        <div style="display:flex;gap:8px"><input id="cfg-token" type="password" placeholder="GitHub token (fine-grained)" value="${esc(cfg.token)}" style="flex:1"><button class="chip" onclick="saveToken()">Saglabāt</button></div>
+        ${cfg.token ? `<button class="chip" style="margin-top:10px" onclick="doPull()">⬇️ Ielādēt mēles no GitHub</button>` : ""}
+        <p class="note">Token: github.com → Settings → Developer settings → Personal access tokens → Fine-grained → tikai obsidian-domas-utt repo, atļauja "Contents: Read and write".</p>
+      </div>`;
+  }
+
+  else if (view === "log") {
+    app.innerHTML = `
+      <div class="card">
+        <label>Mēle</label>
+        <select onchange="logTarget=this.value;render()">${reeds.map(r => `<option value="${esc(r.reed_id)}" ${r.reed_id===logTarget?"selected":""}>${esc(r.reed_id)} — ${esc(r.status)}</option>`).join("")}</select>
+        <label>Ātrais reitings (1–10)</label>
+        <div class="rate">${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${quickRating===n?"on":""}" onclick="quickRating=quickRating===${n}?0:${n};render()">${n}</button>`).join("")}</div>
+        <label>Kas notika? (nav obligāti)</label>
+        <textarea id="logtext" rows="3" placeholder="piem. Pievilku otro drāti, mī stabils…"></textarea>
+        <div class="note">Pievienos Log ar zīmogu ${nowStamp()}${quickRating ? ` · reitings_tagad → ${quickRating}/10` : ""}</div>
+        <button class="primary" onclick="saveLog()">Pierakstīt</button>
+      </div>
+      <div class="card"><b style="font-size:13px">Pēdējie ieraksti</b>
+        ${reeds.flatMap(r => r.log.map(e => ({...e, id:r.reed_id}))).sort((a,b)=>b.stamp.localeCompare(a.stamp)).slice(0,6).map(e => `
+          <div class="entry"><div class="stamp"><span>${esc(e.id)}</span><span>${esc(e.stamp)}</span></div>
+          ${e.rating ? `<span class="star">★ ${e.rating}/10</span>` : ""}<div class="txt">${esc(e.text)}</div></div>`).join("") || "<p class='txt'>Vēl nav ierakstu.</p>"}
+      </div>`;
+  }
+
+  else if (view === "new" && newForm) {
+    const f = newForm;
+    app.innerHTML = `
+      <div class="card">
+        <div class="grid2">
+          <div><label>cane_manufacturer (nosaka ID)</label>
+          <select onchange="setForm('cane_manufacturer',this.value)"><option value="">izvēlies…</option>${Object.entries(CANE_PREFIX).map(([c,p]) => `<option value="${esc(c)}" ${f.cane_manufacturer===c?"selected":""}>${esc(c)} (${p})</option>`).join("")}</select></div>
+          <div><label>reed_id (auto)</label><input value="${esc(f.reed_id)}" onchange="newForm.reed_id=this.value;render()"></div>
+          <div><label>datums</label><input type="date" value="${esc(f.datums)}" onchange="newForm.datums=this.value"></div>
+          <div><label>shape</label><input placeholder="9" value="${esc(f.shape)}" oninput="newForm.shape=this.value"></div>
+          <div><label>cane_hardness</label><input placeholder="piem. 10.5" value="${esc(f.cane_hardness)}" oninput="newForm.cane_hardness=this.value"></div>
+          <div><label>wire_gauge</label><input placeholder="copper, steel, steel" value="${esc(f.wire_gauge)}" oninput="newForm.wire_gauge=this.value"></div>
+          <div><label>tip_profiler_setting</label><input placeholder="0.5" value="${esc(f.tip_profiler_setting)}" oninput="newForm.tip_profiler_setting=this.value"></div>
+          <div><label>saistīts_ar</label><input placeholder="[[...]]" value="${esc(f.saistīts_ar)}" oninput="newForm.saistīts_ar=this.value"></div>
+        </div>
+        <label>status</label>
+        <div class="chips">${STATUSES.map(s => `<button class="chip ${f.status===s?"on":""}" onclick="newForm.status='${s}';render()">${s}</button>`).join("")}</div>
+        <label>reitings_sākumā (1–10)</label>
+        <div class="rate">${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${f.reitings_sākumā==n?"on":""}" onclick="newForm.reitings_sākumā=${n};render()">${n}</button>`).join("")}</div>
+        <details><summary style="font-size:13px;cursor:pointer;font-weight:600">Mērījumi (Tip → Beigas)</summary>
+          ${MM_POINTS.map(p => {
+            const row = f.m.find(x => x.point === p) || {left:"",right:""};
+            return `<div style="display:flex;gap:6px;margin:4px 0;align-items:center"><span style="font-size:12px;color:#78716c;width:44px">${p}</span>
+            <input style="height:32px" placeholder="kreisā" value="${esc(row.left)}" oninput="updM('${p}','left',this.value)">
+            <input style="height:32px" placeholder="labā" value="${esc(row.right)}" oninput="updM('${p}','right',this.value)"></div>`;
+          }).join("")}
+        </details>
+        <button class="primary" onclick="saveReed()" ${f.reed_id==="…"?"disabled":""}>Izveidot ${esc(f.reed_id)}.md</button>
+      </div>
+      <div class="card"><b id="prevfile" style="font-size:13px">Priekšskatījums: ${esc(cfg.dir)}/${esc(f.reed_id)}.md</b><pre id="prev">${esc(reedToMarkdown(f))}</pre></div>`;
+  }
+
+  else if (view === "library") {
+    const sel = selectedMatch;
+    const matches = sel ? reeds.map(r => ({r, s: similarity(sel, r)})).filter(x => x.s >= 4).sort((a,b)=>b.s-a.s).slice(0,4) : [];
+    app.innerHTML = `
+      ${sel ? `<div class="card" style="background:#fef3c7;border-color:#fcd34d">
+        <div style="display:flex;justify-content:space-between"><b style="font-size:13px">Līdzīgas mēles: ${esc(sel.reed_id)}</b><button class="chip" onclick="selectedMatch=null;render()">notīrīt</button></div>
+        ${matches.length ? matches.map(({r,s}) => `<div class="matchrow"><span><b>${esc(r.reed_id)}</b></span><span class="txt">${esc(r.cane_manufacturer||"?")} · TP ${esc(r.tip_profiler_setting||"?")}</span><span class="star">${Math.min(99,Math.round(s*9))}% match</span></div>`).join("") : "<p class='txt'>Nav tuvu sakritību.</p>"}
+      </div>` : ""}
+      ${reeds.map(r => {
+        const hist = ratingHistory(r);
+        return `<div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <div><b>${esc(r.reed_id)}</b><div class="sub">${esc(r.datums)}${r.log.length ? ` · ${r.log.length} log ieraksti` : ""}</div></div>
+            <span class="pill s-${esc(r.status)}">${esc(r.status)}</span>
+          </div>
+          <div class="chips">${[r.cane_manufacturer, r.shape && "shape "+r.shape, r.tip_profiler_setting && "TP "+r.tip_profiler_setting, r.wire_gauge].filter(Boolean).map(v => `<button class="mchip" onclick="selectedMatch=reeds.find(x=>x.reed_id==='${esc(r.reed_id)}');render()">${esc(v)}</button>`).join("")}</div>
+          <div class="txt">reitings: ${hist.map((v,i) => `<span style="${i===hist.length-1?"color:#b45309;font-weight:700":""}">${v}${i<hist.length-1?" → ":""}</span>`).join("")}${hist.length?"":"–"}${hist.length?"/10":""} ${sparkline(hist)}</div>
+          ${r.log.length ? `<div class="txt" style="font-style:italic;margin-top:6px;color:#78716c">"${esc(r.log[r.log.length-1].text).slice(0,120)}"</div>` : ""}
+        </div>`;
+      }).join("")}`;
+  }
+
+  else if (view === "settings") {
+    app.innerHTML = `<div class="card"><b>⚙️ Iestatījumi</b>
+      <label>GitHub token</label><input type="password" id="cfg-token" value="${esc(cfg.token)}">
+      <label>Repo</label><input id="cfg-repo" value="${esc(cfg.repo)}">
+      <label>Mape</label><input id="cfg-dir" value="${esc(cfg.dir)}">
+      <label>Branch</label><input id="cfg-branch" value="${esc(cfg.branch)}">
+      <button class="primary" onclick="saveSettings()">Saglabāt</button>
+      <button class="chip" style="margin-top:10px" onclick="doPull()">⬇️ Ielādēt mēles no GitHub</button>
+      <button class="chip" style="margin-top:10px;color:#b91c1c" onclick="if(confirm('Dzēst visus lokālos datus?')){reeds=[];persist();render()}">Dzēst lokālos datus</button>
+    </div>`;
+  }
+}
+
+function updM(point, side, val) {
+  const f = newForm;
+  let row = f.m.find(x => x.point === point);
+  if (!row) { row = { point, left: "", right: "" }; f.m.push(row); }
+  row[side] = val;
+  if (!row.left && !row.right) f.m = f.m.filter(x => x.point !== point);
+  document.getElementById("prev").textContent = reedToMarkdown(f);
+}
+
+function saveToken() { cfg.token = document.getElementById("cfg-token").value.trim(); saveCfg(); toast("Token saglabāts ✓"); render(); }
+function saveSettings() {
+  cfg.token = document.getElementById("cfg-token").value.trim();
+  cfg.repo = document.getElementById("cfg-repo").value.trim();
+  cfg.dir = document.getElementById("cfg-dir").value.trim();
+  cfg.branch = document.getElementById("cfg-branch").value.trim();
+  saveCfg(); toast("Saglabāts ✓"); view = "sakums"; render();
+}
+async function doPull() {
+  try { toast("Ielādēju…"); await pullFromGithub(); toast(`Ielādētas ${reeds.length} mēles ✓`); render(); }
+  catch (e) { toast("Kļūda: " + e.message); }
+}
+
+render();
+</script>
+</body>
+</html>

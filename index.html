@@ -136,9 +136,10 @@ function reedToMarkdown(r) {
     "---"
   ].filter(Boolean).join("\n");
   const meas = r.m.length ? "\n" + r.m.map(row => `${row.point} - ${row.left}, ${row.right}`).join("\n") + "\n" : "";
+  const measHist = (r.meas_log || []).map(h => `${h.stamp}: ${h.changes.map(c => `${c.point} ${c.side === "left" ? "kreisā" : "labā"} ${c.from}→${c.to}`).join("; ")}`).join("\n");
   const log = r.log.map(e => `${e.stamp}\n\n${e.rating ? `**Reitings: ${e.rating}/10**\n\n` : ""}${e.text}`).join("\n\n");
   const comments = (r.comments || []).map(c => `${c.stamp} — ${c.text}`).join("\n");
-  return fm + "\n## Mērījumi \n" + meas + "\n## Testēšana \n\n## Piezīmes \n" + (comments ? "\n" + comments + "\n" : "") + "\n## Log\n" + (log ? "\n" + log + "\n" : "");
+  return fm + "\n## Mērījumi \n" + meas + (measHist ? "\n### Vēsture\n" + measHist + "\n" : "") + "\n## Testēšana \n\n## Piezīmes \n" + (comments ? "\n" + comments + "\n" : "") + "\n## Log\n" + (log ? "\n" + log + "\n" : "");
 }
 
 function ratingHistory(r) { const h = []; if (r.reitings_sākumā) h.push(r.reitings_sākumā); r.log.forEach(e => e.rating && h.push(e.rating)); if (r.reitings_tagad && String(r.reitings_tagad) !== String(h[h.length-1] ?? "")) h.push(r.reitings_tagad); return h; }
@@ -260,6 +261,18 @@ function parseReedMarkdown(text, fallbackId) {
     const cm = line.match(/^\s*(\d{4}-\d{2}-\d{2}[ \d:]*)\s*—\s*(.*)/);
     if (cm && cm[2].trim()) notes.push({ stamp: cm[1].trim(), text: cm[2].trim() });
   });
+  const histSec = (measSec.split(/### Vēsture\s*\n/)[1] || "");
+  const meas_log = [];
+  histSec.split("\n").forEach(line => {
+    const hm = line.match(/^\s*(\d{4}-\d{2}-\d{2}[ \d:]*):\s*(.+)/);
+    if (!hm) return;
+    const changes = [];
+    hm[2].split(";").forEach(part => {
+      const pm = part.trim().match(/^(\S+)\s+(kreisā|labā)\s+(\S+?)→(\S+)$/);
+      if (pm) changes.push({ point: pm[1], side: pm[2] === "kreisā" ? "left" : "right", from: pm[3], to: pm[4] });
+    });
+    if (changes.length) meas_log.push({ stamp: hm[1].trim(), changes });
+  });
   return {
     reed_id: fm.reed_id || fallbackId, datums: fm.datums || today(),
     shape: fm.shape || "", cane_manufacturer: fm.cane_manufacturer || "", metode: fm.metode || "", cane_hardness: fm.cane_hardness || "",
@@ -267,7 +280,7 @@ function parseReedMarkdown(text, fallbackId) {
     status: fm.status || "testēšanā", saistīts_ar: fm.saistīts_ar || "",
     reitings_sākumā: fm.reitings_sākumā || "", reitings_tagad: fm.reitings_tagad || "",
     e_nestabila: fm.e_nestabila || "", e_pakape: fm.e_nestabilitates_pakape || "",
-    m: meas, log, comments: notes, _file: fallbackId + ".md"
+    m: meas, log, comments: notes, meas_log, _file: fallbackId + ".md"
   };
 }
 
@@ -279,6 +292,7 @@ let logTarget = reeds.length ? reeds[0].reed_id : "";
 let newForm = null;
 let editTarget = null;
 let editDraft = "";
+let editBaseline = null;
 let wireSel = { wire: null, action: null };
 let wireTo = "";
 
@@ -465,7 +479,7 @@ function render() {
           <div style="display:flex;justify-content:space-between;align-items:start">
             <div><b>${esc(r.reed_id)}</b><div class="sub">${esc(r.datums)}${r.log.length ? ` · ${r.log.length} log ieraksti` : ""}</div></div>
             <div style="display:flex;gap:6px;align-items:center">
-              <button class="chip" style="font-size:12px;padding:2px 10px" onclick="editTarget='${esc(r.reed_id)}';view='edit';render()">✏️</button>
+              <button class="chip" style="font-size:12px;padding:2px 10px" onclick="enterEdit('${esc(r.reed_id)}')">✏️</button>
               <span class="pill s-${esc(r.status)}">${esc(r.status)}</span>
             </div>
           </div>
@@ -520,6 +534,11 @@ function render() {
             <input style="height:36px" placeholder="bez" value="${esc(row.right)}" oninput="editM('${p}','right',this.value)">
           </div>`;
         }).join("")}
+        ${(r.meas_log || []).length ? `
+        <div style="margin-top:14px;border-top:1px solid #e7e5e4;padding-top:10px">
+          <label>📈 Vēsture — kā mērījumi mainījās</label>
+          ${r.meas_log.slice().reverse().map(h => `<div class="entry" style="margin:6px 0"><div class="stamp">${esc(h.stamp)}</div><div class="txt">${h.changes.map(c => `${esc(c.point)} ${c.side === "left" ? "kreisā" : "labā"}: <b style="color:#b91c1c">${esc(c.from)}</b> → <b style="color:#15803d">${esc(c.to)}</b>`).join(" · ")}</div></div>`).join("")}
+        </div>` : ""}
       </div>
 
       <div class="card">
@@ -638,8 +657,30 @@ function delComment(i) {
   const r = reeds.find(x => x.reed_id === editTarget);
   r.comments.splice(i, 1); persist(); render();
 }
+function enterEdit(id) {
+  editTarget = id; editDraft = "";
+  const r = reeds.find(x => x.reed_id === id);
+  editBaseline = r ? JSON.parse(JSON.stringify(r.m)) : [];
+  view = "edit"; render();
+}
 function saveEdit() {
   const r = reeds.find(x => x.reed_id === editTarget);
+  // diff measurements against entry baseline → record change history
+  const changes = [];
+  (r.m || []).forEach(row => {
+    const old = (editBaseline || []).find(b => normPoint(b.point) === normPoint(row.point)) || {};
+    if (String(old.left ?? "") !== String(row.left ?? "") && String(row.left) !== "")
+      changes.push({ point: normPoint(row.point), side: "left", from: old.left || "–", to: row.left });
+    else if (String(old.left ?? "") !== String(row.left ?? "") && String(row.left) === "")
+      changes.push({ point: normPoint(row.point), side: "left", from: old.left || "–", to: "–" });
+    if (String(old.right ?? "") !== String(row.right ?? "") && String(row.right) !== "")
+      changes.push({ point: normPoint(row.point), side: "right", from: old.right || "–", to: row.right });
+  });
+  if (changes.length) {
+    r.meas_log = r.meas_log || [];
+    r.meas_log.push({ stamp: nowStamp(), changes });
+    toast(`📏 ${changes.length} mērījumu izmaiņas saglabātas vēsturē ✓`);
+  }
   persist(); toast("Izmaiņas saglabātas ✓");
   view = "library"; render();
   pushToGithub(r, "labots");

@@ -137,9 +137,10 @@ function reedToMarkdown(r) {
   ].filter(Boolean).join("\n");
   const meas = r.m.length ? "\n" + r.m.map(row => `${row.point} - ${row.left}, ${row.right}`).join("\n") + "\n" : "";
   const measHist = (r.meas_log || []).map(h => `${h.stamp}: ${h.changes.map(c => `${c.point} ${c.side === "left" ? "kreisā" : "labā"} ${c.from}→${c.to}`).join("; ")}`).join("\n");
+  const eHist = (r.e_log || []).map(h => `${h.stamp}: E ${h.from} → ${h.to}`).join("\n");
   const log = r.log.map(e => `${e.stamp}\n\n${e.rating ? `**Reitings: ${e.rating}/10**\n\n` : ""}${e.text}`).join("\n\n");
   const comments = (r.comments || []).map(c => `${c.stamp} — ${c.text}`).join("\n");
-  return fm + "\n## Mērījumi \n" + meas + (measHist ? "\n### Vēsture\n" + measHist + "\n" : "") + "\n## Testēšana \n\n## Piezīmes \n" + (comments ? "\n" + comments + "\n" : "") + "\n## Log\n" + (log ? "\n" + log + "\n" : "");
+  return fm + "\n## Mērījumi \n" + meas + (measHist ? "\n### Vēsture\n" + measHist + "\n" : "") + "\n## Testēšana \n" + (eHist ? "\n" + eHist + "\n" : "") + "\n## Piezīmes \n" + (comments ? "\n" + comments + "\n" : "") + "\n## Log\n" + (log ? "\n" + log + "\n" : "");
 }
 
 function ratingHistory(r) { const h = []; if (r.reitings_sākumā) h.push(r.reitings_sākumā); r.log.forEach(e => e.rating && h.push(e.rating)); if (r.reitings_tagad && String(r.reitings_tagad) !== String(h[h.length-1] ?? "")) h.push(r.reitings_tagad); return h; }
@@ -238,6 +239,12 @@ function parseReedMarkdown(text, fallbackId) {
     if (kv) fm[kv[1]] = kv[2].replace(/^"|"$/g,"").trim();
   });
   const body = text.slice(m[0].length);
+  const eSec = (body.split(/## Testēšana\s*\n/)[1] || "").split(/## /)[0];
+  const e_log = [];
+  eSec.split("\n").forEach(line => {
+    const em = line.match(/^\s*(\d{4}-\d{2}-\d{2}[ \d:]*):\s*E\s+(.+?)\s*→\s*(.+)$/);
+    if (em) e_log.push({ stamp: em[1].trim(), from: em[2].trim(), to: em[3].trim() });
+  });
   const logSec = body.split(/## Log\s*\n/)[1] || "";
   const log = [];
   const chunks = logSec.split(/\n(?=\d{4}-\d{2}-\d{2})/).filter(s => s.trim());
@@ -280,7 +287,7 @@ function parseReedMarkdown(text, fallbackId) {
     status: fm.status || "testēšanā", saistīts_ar: fm.saistīts_ar || "",
     reitings_sākumā: fm.reitings_sākumā || "", reitings_tagad: fm.reitings_tagad || "",
     e_nestabila: fm.e_nestabila || "", e_pakape: fm.e_nestabilitates_pakape || "",
-    m: meas, log, comments: notes, meas_log, _file: fallbackId + ".md"
+    m: meas, log, comments: notes, meas_log, e_log, _file: fallbackId + ".md"
   };
 }
 
@@ -293,6 +300,7 @@ let newForm = null;
 let editTarget = null;
 let editDraft = "";
 let editBaseline = null;
+let editBaselineE = null;
 let wireSel = { wire: null, action: null };
 let wireTo = "";
 
@@ -521,6 +529,11 @@ function render() {
         ${r.e_nestabila === "jā" ? `
         <label>Cik nestabils? (1–10)</label>
         <div class="rate">${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${String(r.e_pakape)===String(n)?"on":""}" onclick="setEpak(${n})">${n}</button>`).join("")}</div>` : ""}
+        ${(r.e_log || []).length ? `
+        <div style="margin-top:12px;border-top:1px solid #e7e5e4;padding-top:8px">
+          <label>📈 E vēsture</label>
+          ${r.e_log.slice().reverse().map(h => `<div class="entry" style="margin:6px 0"><div class="stamp">${esc(h.stamp)}</div><div class="txt"><b style="color:#b91c1c">${esc(h.from)}</b> → <b style="color:#15803d">${esc(h.to)}</b></div></div>`).join("")}
+        </div>` : ""}
       </div>
 
       <div class="card">
@@ -661,6 +674,7 @@ function enterEdit(id) {
   editTarget = id; editDraft = "";
   const r = reeds.find(x => x.reed_id === id);
   editBaseline = r ? JSON.parse(JSON.stringify(r.m)) : [];
+  editBaselineE = r ? { nest: r.e_nestabila, pak: r.e_pakape } : {};
   view = "edit"; render();
 }
 function saveEdit() {
@@ -680,6 +694,15 @@ function saveEdit() {
     r.meas_log = r.meas_log || [];
     r.meas_log.push({ stamp: nowStamp(), changes });
     toast(`📏 ${changes.length} mērījumu izmaiņas saglabātas vēsturē ✓`);
+  }
+  // E-stability change history
+  const eDesc = (nest, pak) => nest === "jā" ? `nestabils${pak ? " (" + pak + "/10)" : ""}` : (nest === "nē" ? "stabils" : "nav vērtēts");
+  const eBefore = eDesc(editBaselineE?.nest ?? "", editBaselineE?.pak ?? "");
+  const eAfter = eDesc(r.e_nestabila ?? "", r.e_pakape ?? "");
+  if (eBefore !== eAfter) {
+    r.e_log = r.e_log || [];
+    r.e_log.push({ stamp: nowStamp(), from: eBefore, to: eAfter });
+    toast("🎵 E stabilitātes izmaiņa pierakstīta vēsturē ✓");
   }
   persist(); toast("Izmaiņas saglabātas ✓");
   view = "library"; render();

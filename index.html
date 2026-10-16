@@ -211,33 +211,33 @@ function diagnose(r, sym) {
   const worst = ["T","2","4","8","12","16","20","L"].map(bal).filter(Boolean).sort((a,b) => b.d - a.d)[0];
   const hasData = (r.m || []).length >= 3;
   if (sym.stuffy) {
-    out.push({ t: "Pārbaudi kopējo biezumu pie plāksnes sākuma (4–8mm)", b: hasData ? `Tavā ${r.reed_id}: 4mm = ${valAt(r,"4") ?? "?"}, 8mm = ${valAt(r,"8") ?? "?"}. Ja cietība/rezistence ir visā oktāvā, tur parasti ir par daudz koka.` : "" });
-    out.push({ t: "Paplašini spraugu: viegli spied 1. drātu kopā (plakanāks priekšgals)", b: "1. drāts vada spraugu — mazums paplašinājuma bieži dod atbildīgāku sākumu." });
-    out.push({ t: "Nedaudz nogriezt galu (1mm ātrumā)", b: "Īsāka mēle = vieglāka atbilde, bet arī augstāks tonis — ej pa mazam." });
+    out.push({ t: "Check overall thickness at the shoulder (4–8mm)", b: hasData ? `Your ${r.reed_id}: 4mm = ${valAt(r,"4") ?? "?"}, 8mm = ${valAt(r,"8") ?? "?"}. If the resistance is across the whole octave, there is usually too much wood there.` : "" });
+    out.push({ t: "Open the aperture: gently squeeze wire 1 flatter", b: "Wire 1 controls the aperture — a small opening often makes the response quicker." });
+    out.push({ t: "Clip the tip a little (in ~1mm steps)", b: "A shorter reed responds easier but also raises pitch — go gradually." });
   }
   if (sym.flat) {
-    out.push({ t: "Nogriezt galu", b: "Klasiskais līdzeklis pret zemu toni — sāc ar ~0,5–1mm un pārbaudi." });
-    out.push({ t: "Pārbaudi 1. drāta pozīciju/saspīlējumu", b: "Pievelkot pirmo drāti virzienā uz spalu, tonis ceļas." });
-    if (hasData && valAt(r,"T") !== null) out.push({ t: "Vai tips nav par plānu?", b: `T vērtība: ${valAt(r,"T")}. Par plāns tips pie plašas spraugas = zems tonis.` });
+    out.push({ t: "Clip the tip", b: "The classic fix for a flat reed — start with ~0.5–1mm and re-check." });
+    out.push({ t: "Check wire 1 position/tension", b: "Pulling the first wire toward the collar raises the pitch." });
+    if (hasData && valAt(r,"T") !== null) out.push({ t: "Is the tip too thin?", b: `Your T value: ${valAt(r,"T")}. A too-thin tip with a wide aperture = flat pitch.` });
   }
   if (sym.sharp) {
-    out.push({ t: "Plānāk plecu/garlaikas zonu (4–8mm), nevis pašu galu", b: "Augsts tonis bieži no pārāk stingras/brīvas mēles — mazliet koka nost no vidusdaļas parasti nolaiž." });
-    out.push({ t: "Paplašini spraugu (spied 1. drātu)", b: "Plašāka sprauga parasti nolaiž toni un dod lielāku toni." });
+    out.push({ t: "Thin the shoulder/back zone (4–8mm) rather than the very tip", b: "High pitch often comes from an over-stiff reed — taking a little wood from the middle usually lowers it." });
+    out.push({ t: "Open the aperture (squeeze wire 1)", b: "A wider aperture usually drops the pitch and gives a bigger tone." });
   }
   if (sym.unresp) {
-    out.push({ t: "Pārbaudi drātu saspīlējumu — it īpaši 1. un 2.", b: `Tavās mēlēs: ${[r.wire_1,r.wire_2,r.wire_3].filter(Boolean).join(" · ") || "drātis nav aizpildītas"} — vaļīga 2. drāts bieži = letena, "mirkusi" atbilde.` });
-    out.push({ t: "Izmerē un sasvērt plāksnes (sk. bilances ieteikumu zemāk)", b: "Nelīdzsvarotas plāksnes ir biežs letenas atbildes cēlonis." });
+    out.push({ t: "Check wire tension — especially 1 and 2", b: `Your wires: ${[r.wire_1,r.wire_2,r.wire_3].filter(Boolean).join(" · ") || "not filled in"} — a loose 2nd wire often = sluggish, dead response.` });
+    out.push({ t: "Measure and balance the two blades (see the balance note below)", b: "Unbalanced blades are a common cause of poor response." });
   }
   if (sym.einstab || r.e_nestabila === "jā") {
-    if (worst && worst.d > 2) out.push({ t: `Izlīdzini plāksnes punktā ${worst.p} (starpība ${worst.d})`, b: "E nestabilitāte vispirms meklējama plāksņu nelīdzsvarotībā — sāc ar lielāko starpību, noslīpē resnāko plāksni tajā punktā." });
-    else out.push({ t: "Ja starpība starp plāksnēm neliela — E problēma visticamāk spraugā/kaklā, nevis biezumā", b: "Mēģini 1. drāta mikropozīcijas un spraugas izmaiņas; fiksē katru mēģinājumu Log, lai vēlāk varētu salīdzināt." });
-    out.push({ t: "Spēlē mēli iekšā vismaz vairākas dienas pirms secinājumiem", b: "Jaunas, tikko noslīpētas mēles gandrīz vienmēr sākumā E 'švītā' — dod tām laiku un pārbaudi vēlreiz." });
+    if (worst && worst.d > 2) out.push({ t: `Balance the blades at ${worst.p} (difference ${worst.d})`, b: "E instability is first sought in blade imbalance — start with the biggest difference and scrape the thicker blade at that point." });
+    else out.push({ t: "Blade balance looks fine — the E problem is likely in the aperture/throat, not thickness", b: "Try wire-1 micro-adjustments and aperture changes; record every attempt in the Log so you can compare later." });
+    out.push({ t: "Play the reed in for several days before drawing conclusions", b: "Freshly scraped reeds almost always have an unsettled E at first — give it time and check again." });
   }
   if (sym.mushy) {
-    out.push({ t: "Mushy = par maz atbalsta: parasti par plāns tuvāk spalam vai sprauga par lielu", b: hasData ? `Pārbaudi 16mm/L zonu: 16mm = ${valAt(r,"16") ?? "?"}, L = ${valAt(r,"L") ?? "?"}. Ja tur vairs nav "kalna", mēle zaudē atsperīgumu.` : "" });
-    out.push({ t: "Ciešāka 2. drāts var atdot atbalstu", b: "Atpakaļejošs solis pirms koka slīpēšanas — sāc ar drāti." });
+    out.push({ t: "Mushy = not enough support: usually too thin near the collar, or the aperture is too wide", b: hasData ? `Check the 16mm/L zone: 16mm = ${valAt(r,"16") ?? "?"}, L = ${valAt(r,"L") ?? "?"}. If there is no 'mountain' left there, the reed loses its spring.` : "" });
+    out.push({ t: "A tighter 2nd wire can restore support", b: "A reversible step before scraping wood — start with the wire." });
   }
-  if (hasData && worst && worst.d > 3) out.push({ t: `⚠️ Vislielākā plāksņu starpība: ${worst.p} (${worst.d})`, b: "Neatkarīgi no simptomiem — izlīdzini šo punktu un atzīmē izmaiņu 📈 Vēsturē." });
+  if (hasData && worst && worst.d > 3) out.push({ t: `⚠️ Largest blade difference: ${worst.p} (${worst.d})`, b: "Regardless of symptoms — balance this point and record the change in the 📈 history." });
   return out;
 }
 function corrRow(label, d) {
@@ -692,26 +692,26 @@ function render() {
 
   else if (view === "diag") {
     const r = reeds.find(x => x.reed_id === diagReed);
-    const SYMPTOMS = [["stuffy","👶 Aizsegta / smaga"],["flat","📉 Zems tonis"],["sharp","📈 Augsts tonis"],["unresp","🥱 Letena atbilde"],["einstab","🎵 E nestabila"],["mushy","🫠 Mushy / bez atbalsta"]];
+    const SYMPTOMS = [["stuffy","👶 Stuffy / heavy"],["flat","📉 Flat pitch"],["sharp","📈 Sharp pitch"],["unresp","🥱 Unresponsive"],["einstab","🎵 Unstable E"],["mushy","🫠 Mushy / no support"]];
     const sugg = diagnose(r, diagSym);
     app.innerHTML = `
     <div class="card">
-      <b style="font-size:14px">🩺 Mēles diagnoze</b>
-      <label style="margin-top:10px">Izvēlies mēli</label>
+      <b style="font-size:14px">🩺 Reed diagnosis</b>
+      <label style="margin-top:10px">Pick a reed</label>
       <select onchange="diagReed=this.value;render()" style="height:36px;width:100%">
-        <option value="">— izvēlēties —</option>
+        <option value="">— choose —</option>
         ${sortedForLibrary().map(x => `<option value="${esc(x.reed_id)}" ${x.reed_id===diagReed?"selected":""}>${esc(x.reed_id)} (${esc(x.status)})</option>`).join("")}
       </select>
       ${r ? `
-      <label style="margin-top:12px">Simptomi (var vairākus)</label>
+      <label style="margin-top:12px">Symptoms (pick any)</label>
       <div class="chips">${SYMPTOMS.map(([k,label]) => `<button class="chip ${diagSym[k]?"on":""}" onclick="diagSym['${k}']=!diagSym['${k}'];render()">${label}</button>`).join("")}</div>
-      <div class="sub" style="font-size:11px;margin-top:6px">Ieteikumi balstās reed-making literatūras vispārējā praksē + tavā mērījumu datā. Ne vienmēr cēlonis ir tur, kur izskatās — pieraksti rezultātu Log!</div>
+      <div class="sub" style="font-size:11px;margin-top:6px">Suggestions combine general reed-making practice with your own measurements. The cause is not always where it looks — record the outcome in the Log!</div>
       ${Object.values(diagSym).some(Boolean) ? `
         <div style="margin-top:14px">
-        ${sugg.length ? sugg.map(s => `<div class="entry" style="margin:8px 0"><div class="txt"><b>${esc(s.t)}</b>${s.b ? `<div class="sub" style="margin-top:4px">${esc(s.b)}</div>` : ""}</div></div>`).join("") : "<p class='txt'>Izvēlies simptomus, lai redzētu ieteikumus.</p>"}
+        ${sugg.length ? sugg.map(s => `<div class="entry" style="margin:8px 0"><div class="txt"><b>${esc(s.t)}</b>${s.b ? `<div class="sub" style="margin-top:4px">${esc(s.b)}</div>` : ""}</div></div>`).join("") : "<p class='txt'>Pick symptoms to see suggestions.</p>"}
         </div>` : ""}
       ${r.m && r.m.length >= 2 ? `<div style="margin-top:10px">${profilePlot(r)}</div>` : ""}
-      ` : "<p class='txt' style='margin-top:10px'>Izvēlies mēli no bibliotēkas.</p>"}
+      ` : "<p class='txt' style='margin-top:10px'>Pick a reed from the library.</p>"}
     </div>`;
   }
   else if (view === "settings") {

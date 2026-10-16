@@ -177,6 +177,29 @@ const WIRE_OPTS = { 1: ["copper","6","7"], 2: ["6","7","steel"], 3: ["6","6 dubu
 function wireChipsNew(n) {
   return `<div class="chips" style="margin-top:4px">${WIRE_OPTS[n].map(v => `<button class="chip" style="font-size:11px;padding:2px 8px" onclick="newForm.wire_${n}='${v.replace(/'/g,"\\'")}';render()">${v}</button>`).join("")}</div>`;
 }
+function profilePlot(r) {
+  const pts = MM_POINTS.filter(p => (r.m || []).some(x => normPoint(x.point) === normPoint(p)));
+  if (pts.length < 2) return "";
+  const xs = pts.map((p, i) => 10 + i * ((300 - 20) / (pts.length - 1)));
+  const all = pts.map(p => r.m.find(x => normPoint(x.point) === normPoint(p)));
+  const maxV = Math.max(...all.flatMap(row => [Number(row.left) || 0, Number(row.right) || 0]), 1);
+  const y = v => 90 - (v / maxV) * 78;
+  const path = side => pts.map((p, i) => `${i ? "L" : "M"}${xs[i]},${y(Number(all[i][side]) || 0)}`).join(" ");
+  const ok = side => pts.map((p, i) => (all[i][side] !== "" && all[i][side] !== undefined ? `${i ? "L" : "M"}${xs[i]},${y(Number(all[i][side]))}` : "")).filter(Boolean).join(" ");
+  return `<div style="margin-top:10px">
+    <svg viewBox="0 0 300 110" style="width:100%;max-width:420px;background:#fafaf9;border:1px solid #e7e5e4;border-radius:8px">
+      ${[0,0.25,0.5,0.75,1].map(t => `<line x1="10" x2="290" y1="${12 + t*78}" y2="${12 + t*78}" stroke="#eee" stroke-width="1"/>`).join("")}
+      <path d="${ok("left")}" fill="none" stroke="#1d4ed8" stroke-width="2.2"/>
+      <path d="${ok("right")}" fill="none" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="5 3"/>
+      ${xs.map((x, i) => `<text x="${x}" y="104" text-anchor="middle" font-size="8" fill="#78716c">${pts[i]}</text>`).join("")}
+      ${all.map((row, i) => `<circle cx="${xs[i]}" cy="${y(Number(row.left) || 0)}" r="2.5" fill="#1d4ed8"/>`).join("")}
+      ${all.map((row, i) => row.right !== "" ? `<circle cx="${xs[i]}" cy="${y(Number(row.right))}" r="2.5" fill="#ea580c"/>` : "").join("")}
+    </svg>
+    <div style="font-size:10px;color:#78716c;margin-top:4px">
+      <span style="color:#1d4ed8">━ 1. puse</span> &nbsp; <span style="color:#ea580c">╌╌ 2. puse</span> · T (tips) pa kreisi, L (spals) pa labi — kalna profils
+    </div>
+  </div>`;
+}
 function corrRow(label, d) {
   if (!d.unstable || !d.stable) return "";
   const u = d.unstable, s = d.stable;
@@ -575,11 +598,13 @@ function render() {
             <input style="height:36px" placeholder="bez" value="${esc(row.right)}" oninput="editM('${p}','right',this.value)">
           </div>`;
         }).join("")}
+        ${profilePlot(r)}
         ${(r.meas_log || []).length ? `
-        <div style="margin-top:14px;border-top:1px solid #e7e5e4;padding-top:10px">
+          <div style="margin-top:14px;border-top:1px solid #e7e5e4;padding-top:10px">
           <label>📈 Vēsture — kā mērījumi mainījās</label>
           ${r.meas_log.slice().reverse().map(h => `<div class="entry" style="margin:6px 0"><div class="stamp">${esc(h.stamp)}</div><div class="txt">${h.changes.map(c => `${esc(c.point)} ${c.side === "left" ? "1. puse" : "2. puse"}: <b style="color:#b91c1c">${esc(c.from)}</b> → <b style="color:#15803d">${esc(c.to)}</b>`).join(" · ")}</div></div>`).join("")}
-        </div>` : ""}
+          </div>` : ""}
+        </div>
       </div>
 
       <div class="card">

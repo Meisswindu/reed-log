@@ -138,7 +138,7 @@ function reedToMarkdown(r) {
     "---"
   ].filter(Boolean).join("\n");
   const meas = r.m.length ? "\n" + r.m.map(row => `${row.point} - ${row.left}, ${row.right}`).join("\n") + "\n" : "";
-  const measHist = (r.meas_log || []).map(h => `${h.stamp}: ${h.changes.map(c => `${c.point} ${c.side === "left" ? "kreisā" : "labā"} ${c.from}→${c.to}`).join("; ")}`).join("\n");
+  const measHist = (r.meas_log || []).map(h => `${h.stamp}: ${h.changes.map(c => `${c.point} ${c.side === "left" ? "1. puse" : "2. puse"} ${c.from}→${c.to}`).join("; ")}`).join("\n");
   const eHist = (r.e_log || []).map(h => `${h.stamp}: E ${h.from} → ${h.to}`).join("\n");
   const log = r.log.map(e => `${e.stamp}\n\n${e.rating ? `**Reitings: ${e.rating}/10**\n\n` : ""}${e.text}`).join("\n\n");
   const comments = (r.comments || []).map(c => `${c.stamp} — ${c.text}`).join("\n");
@@ -289,8 +289,8 @@ function parseReedMarkdown(text, fallbackId) {
     if (!hm) return;
     const changes = [];
     hm[2].split(";").forEach(part => {
-      const pm = part.trim().match(/^(\S+)\s+(kreisā|labā)\s+(\S+?)→(\S+)$/);
-      if (pm) changes.push({ point: pm[1], side: pm[2] === "kreisā" ? "left" : "right", from: pm[3], to: pm[4] });
+      const pm = part.trim().match(/^(\S+)\s+(kreisā|labā|1\. puse|2\. puse)\s+(\S+?)→(\S+)$/);
+      if (pm) changes.push({ point: pm[1], side: (pm[2] === "kreisā" || pm[2] === "1. puse") ? "left" : "right", from: pm[3], to: pm[4] });
     });
     if (changes.length) meas_log.push({ stamp: hm[1].trim(), changes });
   });
@@ -476,7 +476,7 @@ function render() {
         <label>reitings_sākumā (1–10)</label>
         <div class="rate">${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${f.reitings_sākumā==n?"on":""}" onclick="newForm.reitings_sākumā=${n};render()">${n}</button>`).join("")}</div>
         <label>Mērījumi (mikrometrs, T=tip, L=spals)</label>
-        <details open><summary style="font-size:12px;color:#78716c;cursor:pointer">kreisā puse = ar 1. drāti, labā = bez</summary>
+        <details open><summary style="font-size:12px;color:#78716c;cursor:pointer">1. puse = ar 1. drāti (augšējā plāksne) · 2. puse = pēc apgriešanas (apakšējā plāksne)</summary>
           ${MM_POINTS.map(p => {
             const row = f.m.find(x => normPoint(x.point) === normPoint(p)) || {left:"",right:""};
             return `<div style="display:flex;gap:6px;margin:4px 0;align-items:center"><span style="font-size:12px;color:#78716c;width:20px">${p}</span>
@@ -497,13 +497,13 @@ function render() {
     app.innerHTML = `
       ${anyCorrData ? `<div class="card" style="background:#f0fdf4;border-color:#86efac">
         <b style="font-size:14px">🔬 E stabilitāte × mikrometrs</b>
-        <div class="sub" style="font-size:11px;margin:2px 0 8px">vidējā starpība (kreisā – labā puse) · nestabilas: ${cs.unstable} · stabillas: ${cs.stable}</div>
+        <div class="sub" style="font-size:11px;margin:2px 0 8px">vidējā starpība starp plāksnēm (1. puse – 2. puse) · nestabilas: ${cs.unstable} · stabillas: ${cs.stable}</div>
         <table style="width:100%;font-size:12px;border-collapse:collapse">
           <tr style="color:#78716c"><td style="padding:2px 0">punkts</td><td>nestabilas${cs.mm4.unstable ? ` (n=${cs.mm4.unstable.n})` : ""}</td><td>stabillas${cs.mm4.stable ? ` (n=${cs.mm4.stable.n})` : ""}</td><td>atšķirība</td></tr>
           ${corrRow("4mm", cs.mm4)}
           ${corrRow("16mm", cs.mm16)}
         </table>
-        <div class="sub" style="font-size:11px;margin-top:6px">${(cs.unstable + cs.stable) < 6 ? "Vēl par maz datu — aizpildi E stabilitāti vairākām mēlēm, lai skaitļi kaut ko nozīmētu." : "Sarkanā augšup bulta = šajā punktā nestabilām mēlēm lielāka starpība (kreisā – labā puse)."}</div>
+        <div class="sub" style="font-size:11px;margin-top:6px">${(cs.unstable + cs.stable) < 6 ? "Vēl par maz datu — aizpildi E stabilitāti vairākām mēlēm, lai skaitļi kaut ko nozīmētu." : "Sarkanā augšup bulta = šajā punktā nestabilām mēlēm lielāka starpība starp plāksnēm."}</div>
       </div>` : ""}
       ${sel ? `<div class="card" style="background:#fef3c7;border-color:#fcd34d">
         <div style="display:flex;justify-content:space-between"><b style="font-size:13px">Līdzīgas mēles: ${esc(sel.reed_id)}</b><button class="chip" onclick="selectedMatch=null;render()">notīrīt</button></div>
@@ -566,7 +566,7 @@ function render() {
 
       <div class="card">
         <b style="font-size:14px">📐 Mērījumi <span class="sub" style="font-size:11px">(mikrometrs · T=tip, L=spals)</span></b>
-        <div class="sub" style="font-size:11px;margin:4px 0 10px">kreisā puse = ar 1. drāti · labā = bez zināšanas</div>
+        <div class="sub" style="font-size:11px;margin:4px 0 10px">1. puse = ar 1. drāti (augšējā plāksne) · 2. puse = pēc apgriešanas (apakšējā plāksne)</div>
         ${MM_POINTS.map(p => {
           const row = r.m.find(x => normPoint(x.point) === normPoint(p)) || {left:"",right:""};
           return `<div style="display:flex;gap:8px;margin:6px 0;align-items:center">
@@ -578,7 +578,7 @@ function render() {
         ${(r.meas_log || []).length ? `
         <div style="margin-top:14px;border-top:1px solid #e7e5e4;padding-top:10px">
           <label>📈 Vēsture — kā mērījumi mainījās</label>
-          ${r.meas_log.slice().reverse().map(h => `<div class="entry" style="margin:6px 0"><div class="stamp">${esc(h.stamp)}</div><div class="txt">${h.changes.map(c => `${esc(c.point)} ${c.side === "left" ? "kreisā" : "labā"}: <b style="color:#b91c1c">${esc(c.from)}</b> → <b style="color:#15803d">${esc(c.to)}</b>`).join(" · ")}</div></div>`).join("")}
+          ${r.meas_log.slice().reverse().map(h => `<div class="entry" style="margin:6px 0"><div class="stamp">${esc(h.stamp)}</div><div class="txt">${h.changes.map(c => `${esc(c.point)} ${c.side === "left" ? "1. puse" : "2. puse"}: <b style="color:#b91c1c">${esc(c.from)}</b> → <b style="color:#15803d">${esc(c.to)}</b>`).join(" · ")}</div></div>`).join("")}
         </div>` : ""}
       </div>
 

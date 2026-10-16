@@ -273,8 +273,8 @@ function parseReedMarkdown(text, fallbackId) {
   const measSec = (body.split(/## Mērījumi\s*\n/)[1] || "").split(/## /)[0];
   const meas = [];
   measSec.split("\n").forEach(line => {
-    const mm = line.match(/^\s*([\w]+)\s*-\s*(\d+),\s*(\d+)/);
-    if (mm) meas.push({ point: mm[1], left: mm[2], right: mm[3] });
+    const mm = line.match(/^\s*([\w]+)\s*-\s*(\d+(?:[.,]\d+)?)\s*(?:,\s*(\d+(?:[.,]\d+)?))?/);
+    if (mm) meas.push({ point: mm[1], left: mm[2], right: mm[3] || "" });
   });
   const notesSec = (body.split(/## Piezīmes\s*\n/)[1] || "").split(/## /)[0];
   const notes = [];

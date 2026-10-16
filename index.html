@@ -125,7 +125,9 @@ function reedToMarkdown(r) {
     r.cane_manufacturer && `cane_manufacturer: ${r.cane_manufacturer}`,
     r.metode && `metode: ${r.metode}`,
     r.cane_hardness && `cane_hardness: "${r.cane_hardness}"`,
-    r.wire_gauge && `wire_gauge: ${r.wire_gauge}`,
+    r.wire_1 && `wire_1: ${r.wire_1}`,
+    r.wire_2 && `wire_2: ${r.wire_2}`,
+    r.wire_3 && `wire_3: ${r.wire_3}`,
     r.tip_profiler_setting && `tip_profiler_setting: "${r.tip_profiler_setting}"`,
     `status: ${r.status}`,
     r.saistīts_ar && `saistīts_ar: ${r.saistīts_ar}`,
@@ -170,6 +172,10 @@ function corrStats() {
     mm4: { unstable: collect(groups.unstable, "4"), stable: collect(groups.stable, "4") },
     mm16: { unstable: collect(groups.unstable, "16"), stable: collect(groups.stable, "16") },
   };
+}
+const WIRE_OPTS = { 1: ["copper","6","7"], 2: ["6","7","steel"], 3: ["6","6 dubultā","7","7 dubultā","steel"] };
+function wireChipsNew(n) {
+  return `<div class="chips" style="margin-top:4px">${WIRE_OPTS[n].map(v => `<button class="chip" style="font-size:11px;padding:2px 8px" onclick="newForm.wire_${n}='${v.replace(/'/g,"\\'")}';render()">${v}</button>`).join("")}</div>`;
 }
 function corrRow(label, d) {
   if (!d.unstable || !d.stable) return "";
@@ -291,12 +297,17 @@ function parseReedMarkdown(text, fallbackId) {
   const reed = {
     reed_id: fm.reed_id || fallbackId, datums: fm.datums || today(),
     shape: fm.shape || "", cane_manufacturer: fm.cane_manufacturer || "", metode: fm.metode || "", cane_hardness: fm.cane_hardness || "",
-    wire_gauge: fm.wire_gauge || "", tip_profiler_setting: fm.tip_profiler_setting || "",
+    wire_gauge: fm.wire_gauge || "", wire_1: fm.wire_1 || "", wire_2: fm.wire_2 || "", wire_3: fm.wire_3 || "", tip_profiler_setting: fm.tip_profiler_setting || "",
     status: fm.status || "testēšanā", saistīts_ar: fm.saistīts_ar || "",
     reitings_sākumā: fm.reitings_sākumā || "", reitings_tagad: fm.reitings_tagad || "",
     e_nestabila: fm.e_nestabila || "", e_pakape: fm.e_nestabilitates_pakape || "",
     m: meas, log, comments: notes, meas_log, e_log, _file: fallbackId + ".md"
   };
+  // migrate legacy "copper, steel, steel" → wire_1/2/3
+  if (!reed.wire_1 && !reed.wire_2 && !reed.wire_3 && reed.wire_gauge) {
+    const parts = reed.wire_gauge.split(",").map(s => s.trim());
+    reed.wire_1 = parts[0] || ""; reed.wire_2 = parts[1] || ""; reed.wire_3 = parts[2] || "";
+  }
   // dedupe measurement rows (last one wins)
   const seenM = new Map();
   reed.m.forEach(row => seenM.set(normPoint(row.point), row));
@@ -332,7 +343,7 @@ function go(v) {
 }
 
 function startNew() {
-  newForm = { reed_id: "…", datums: today(), shape: "9", cane_manufacturer: "", metode: "", cane_hardness: "", wire_gauge: "", tip_profiler_setting: "", status: "testēšanā", saistīts_ar: "", reitings_sākumā: "", reitings_tagad: "", e_nestabila: "", e_pakape: "", m: [], log: [] };
+  newForm = { reed_id: "…", datums: today(), shape: "9", cane_manufacturer: "", metode: "", cane_hardness: "", wire_gauge: "", wire_1: "", wire_2: "", wire_3: "", tip_profiler_setting: "", status: "testēšanā", saistīts_ar: "", reitings_sākumā: "", reitings_tagad: "", e_nestabila: "", e_pakape: "", m: [], log: [] };
 }
 
 function setForm(k, v) {
@@ -382,7 +393,9 @@ function similarity(a, b) {
   if (a.cane_manufacturer && a.cane_manufacturer === b.cane_manufacturer) s += 3;
   if (a.shape && a.shape === b.shape) s += 1;
   if (a.tip_profiler_setting && a.tip_profiler_setting === b.tip_profiler_setting) s += 2;
-  if (a.wire_gauge && a.wire_gauge === b.wire_gauge) s += 2;
+  if (a.wire_1 && a.wire_1 === b.wire_1) s += 1;
+  if (a.wire_2 && a.wire_2 === b.wire_2) s += 1;
+  if (a.wire_3 && a.wire_3 === b.wire_3) s += 1;
   s += Math.max(0, 4 - Math.abs((parseInt(a.reitings_tagad)||parseInt(a.reitings_sākumā)||0) - (parseInt(b.reitings_tagad)||parseInt(b.reitings_sākumā)||0)));
   return s;
 }
@@ -445,7 +458,9 @@ function render() {
           <div><label>datums</label><input type="date" value="${esc(f.datums)}" onchange="newForm.datums=this.value"></div>
           <div><label>shape</label><input placeholder="9" value="${esc(f.shape)}" oninput="newForm.shape=this.value"></div>
           <div><label>cane_hardness</label><input placeholder="piem. 10.5" value="${esc(f.cane_hardness)}" oninput="newForm.cane_hardness=this.value"></div>
-          <div><label>wire_gauge</label><input placeholder="copper, steel, steel" value="${esc(f.wire_gauge)}" oninput="newForm.wire_gauge=this.value"></div>
+          <div><label>1. drāts</label><input placeholder="copper / 6 / 7" value="${esc(f.wire_1)}" oninput="newForm.wire_1=this.value">${wireChipsNew(1)}</div>
+          <div><label>2. drāts</label><input placeholder="6 / 7 / steel" value="${esc(f.wire_2)}" oninput="newForm.wire_2=this.value">${wireChipsNew(2)}</div>
+          <div><label>3. drāts</label><input placeholder="6 / 6 dubultā / 7 / steel" value="${esc(f.wire_3)}" oninput="newForm.wire_3=this.value">${wireChipsNew(3)}</div>
           <div><label>tip_profiler_setting</label><input placeholder="0.5" value="${esc(f.tip_profiler_setting)}" oninput="newForm.tip_profiler_setting=this.value"></div>
           <div><label>saistīts_ar</label><input placeholder="[[...]]" value="${esc(f.saistīts_ar)}" oninput="newForm.saistīts_ar=this.value"></div>
         </div>
@@ -504,7 +519,7 @@ function render() {
               <span class="pill s-${esc(r.status)}">${esc(r.status)}</span>
             </div>
           </div>
-          <div class="chips">${[r.cane_manufacturer, r.metode && "metode: "+r.metode, r.shape && "shape "+r.shape, r.tip_profiler_setting && "TP "+r.tip_profiler_setting, r.e_nestabila==="jā" && "E nestabils"+(r.e_pakape ? " "+r.e_pakape+"/10" : ""), r.wire_gauge].filter(Boolean).map(v => `<button class="mchip" onclick="selectedMatch=reeds.find(x=>x.reed_id==='${esc(r.reed_id)}');render()">${esc(v)}</button>`).join("")}</div>
+          <div class="chips">${[r.cane_manufacturer, r.metode && "metode: "+r.metode, r.shape && "shape "+r.shape, r.tip_profiler_setting && "TP "+r.tip_profiler_setting, r.e_nestabila==="jā" && "E nestabils"+(r.e_pakape ? " "+r.e_pakape+"/10" : ""), [r.wire_1,r.wire_2,r.wire_3].filter(Boolean).length && "drāts: "+[r.wire_1,r.wire_2,r.wire_3].filter(Boolean).join(" · ")].filter(Boolean).map(v => `<button class="mchip" onclick="selectedMatch=reeds.find(x=>x.reed_id==='${esc(r.reed_id)}');render()">${esc(v)}</button>`).join("")}</div>
           <div class="txt">reitings: ${hist.map((v,i) => `<span style="${i===hist.length-1?"color:#b45309;font-weight:700":""}">${v}${i<hist.length-1?" → ":""}</span>`).join("")}${hist.length?"":"–"}${hist.length?"/10":""} ${sparkline(hist)}</div>
           ${r.log.length ? `<div class="txt" style="font-style:italic;margin-top:6px;color:#78716c">"${esc(r.log[r.log.length-1].text).slice(0,120)}"</div>` : ""}
         </div>`;
@@ -578,7 +593,12 @@ function render() {
             <select onchange="editField('cane_manufacturer',this.value)"><option value="">–</option>${Object.entries(CANE_PREFIX).map(([c,p]) => `<option value="${esc(c)}" ${r.cane_manufacturer===c?"selected":""}>${esc(c)}</option>`).join("")}</select>
           </div>
           ${field("cane_hardness","cane_hardness","piem. 10.5")}
-          ${field("wire_gauge","wire_gauge","piem. copper, steel, steel")}
+          ${field("wire_1","1. drāts","copper / 6 / 7")}
+          <div class="chips" style="margin-top:4px">${WIRE_OPTS[1].map(v => `<button class="chip ${r.wire_1===v?"on":""}" style="font-size:11px;padding:2px 8px" onclick="editField('wire_1','${v}');render()">${v}</button>`).join("")}</div>
+          ${field("wire_2","2. drāts","6 / 7 / steel")}
+          <div class="chips" style="margin-top:4px">${WIRE_OPTS[2].map(v => `<button class="chip ${r.wire_2===v?"on":""}" style="font-size:11px;padding:2px 8px" onclick="editField('wire_2','${v}');render()">${v}</button>`).join("")}</div>
+          ${field("wire_3","3. drāts","6 / 6 dubultā / 7 / steel")}
+          <div class="chips" style="margin-top:4px">${WIRE_OPTS[3].map(v => `<button class="chip ${r.wire_3===v?"on":""}" style="font-size:11px;padding:2px 8px" onclick="editField('wire_3','${v}');render()">${v}</button>`).join("")}</div>
           ${field("tip_profiler_setting","tip_profiler_setting","piem. 0.5")}
           ${field("saistīts_ar","saistīts_ar","[[...]]")}
         </div>

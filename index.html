@@ -211,33 +211,33 @@ function diagnose(r, sym) {
   const worst = ["T","2","4","8","12","16","20","L"].map(bal).filter(Boolean).sort((a,b) => b.d - a.d)[0];
   const hasData = (r.m || []).length >= 3;
   if (sym.stuffy) {
-    out.push({ t: "Check overall thickness at the shoulder (4–8mm)", b: hasData ? `Your ${r.reed_id}: 4mm = ${valAt(r,"4") ?? "?"}, 8mm = ${valAt(r,"8") ?? "?"}. If the resistance is across the whole octave, there is usually too much wood there.` : "" });
-    out.push({ t: "Open the aperture: gently squeeze wire 1 flatter", b: "Wire 1 controls the aperture — a small opening often makes the response quicker." });
-    out.push({ t: "Clip the tip a little (in ~1mm steps)", b: "A shorter reed responds easier but also raises pitch — go gradually." });
+    out.push({ t: "Check overall thickness at the shoulder (4–8mm)", b: hasData ? `Your ${r.reed_id}: 4mm = ${valAt(r,"4") ?? "?"}, 8mm = ${valAt(r,"8") ?? "?"}. If the resistance is across the whole octave, there is usually too much wood there.` : "", src: "General practice — consistent across most reed-making literature" });
+    out.push({ t: "Open the aperture: gently squeeze wire 1 flatter", b: "Wire 1 controls the aperture — a small opening often makes the response quicker.", src: "Weait, 'Bassoon Reed Making' + Popkin & McKaig — both describe wire 1 as the primary aperture control" });
+    out.push({ t: "Clip the tip a little (in ~1mm steps)", b: "A shorter reed responds easier but also raises pitch — go gradually.", src: "General practice (Popkin & McKaig: clipping raises pitch & improves response)" });
   }
   if (sym.flat) {
-    out.push({ t: "Clip the tip", b: "The classic fix for a flat reed — start with ~0.5–1mm and re-check." });
-    out.push({ t: "Check wire 1 position/tension", b: "Pulling the first wire toward the collar raises the pitch." });
-    if (hasData && valAt(r,"T") !== null) out.push({ t: "Is the tip too thin?", b: `Your T value: ${valAt(r,"T")}. A too-thin tip with a wide aperture = flat pitch.` });
+    out.push({ t: "Clip the tip", b: "The classic fix for a flat reed — start with ~0.5–1mm and re-check.", src: "Popkin & McKaig, 'Bassoon Reed Making' — the standard first remedy for flat pitch" });
+    out.push({ t: "Check wire 1 position/tension", b: "Pulling the first wire toward the collar raises the pitch.", src: "Weait, 'Bassoon Reed Making' — wire adjustment chapter" });
+    if (hasData && valAt(r,"T") !== null) out.push({ t: "Is the tip too thin?", b: `Your T value: ${valAt(r,"T")}. A too-thin tip with a wide aperture = flat pitch.`, src: "Reasoned from general practice — not tied to a specific source" });
   }
   if (sym.sharp) {
-    out.push({ t: "Thin the shoulder/back zone (4–8mm) rather than the very tip", b: "High pitch often comes from an over-stiff reed — taking a little wood from the middle usually lowers it." });
-    out.push({ t: "Open the aperture (squeeze wire 1)", b: "A wider aperture usually drops the pitch and gives a bigger tone." });
+    out.push({ t: "Thin the shoulder/back zone (4–8mm) rather than the very tip", b: "High pitch often comes from an over-stiff reed — taking a little wood from the middle usually lowers it.", src: "General practice — scrape order advice appears in most method books" });
+    out.push({ t: "Open the aperture (squeeze wire 1)", b: "A wider aperture usually drops the pitch and gives a bigger tone.", src: "Weait, 'Bassoon Reed Making' + general practice" });
   }
   if (sym.unresp) {
-    out.push({ t: "Check wire tension — especially 1 and 2", b: `Your wires: ${[r.wire_1,r.wire_2,r.wire_3].filter(Boolean).join(" · ") || "not filled in"} — a loose 2nd wire often = sluggish, dead response.` });
-    out.push({ t: "Measure and balance the two blades (see the balance note below)", b: "Unbalanced blades are a common cause of poor response." });
+    out.push({ t: "Check wire tension — especially 1 and 2", b: `Your wires: ${[r.wire_1,r.wire_2,r.wire_3].filter(Boolean).join(" · ") || "not filled in"} — a loose 2nd wire often = sluggish, dead response.`, src: "General practice — wire tension/response link is standard in reed literature" });
+    out.push({ t: "Measure and balance the two blades (see the balance note below)", b: "Unbalanced blades are a common cause of poor response.", src: "General practice — blade balance is emphasized by most reed makers" });
   }
   if (sym.einstab || r.e_nestabila === "jā") {
-    if (worst && worst.d > 2) out.push({ t: `Balance the blades at ${worst.p} (difference ${worst.d})`, b: "E instability is first sought in blade imbalance — start with the biggest difference and scrape the thicker blade at that point." });
-    else out.push({ t: "Blade balance looks fine — the E problem is likely in the aperture/throat, not thickness", b: "Try wire-1 micro-adjustments and aperture changes; record every attempt in the Log so you can compare later." });
-    out.push({ t: "Play the reed in for several days before drawing conclusions", b: "Freshly scraped reeds almost always have an unsettled E at first — give it time and check again." });
+    if (worst && worst.d > 2) out.push({ t: `Balance the blades at ${worst.p} (difference ${worst.d})`, b: "E instability is first sought in blade imbalance — start with the biggest difference and scrape the thicker blade at that point.", src: "Hypothesis from YOUR data — blade-balance vs E-instability correlation; not yet verified against a source. Test & log!" });
+    else out.push({ t: "Blade balance looks fine — the E problem is likely in the aperture/throat, not thickness", b: "Try wire-1 micro-adjustments and aperture changes; record every attempt in the Log so you can compare later.", src: "Reasoned from YOUR measurements — balance ruled out for this reed" });
+    out.push({ t: "Play the reed in for several days before drawing conclusions", b: "Freshly scraped reeds almost always have an unsettled E at first — give it time and check again.", src: "General practice — widely shared observation among reed makers" });
   }
   if (sym.mushy) {
-    out.push({ t: "Mushy = not enough support: usually too thin near the collar, or the aperture is too wide", b: hasData ? `Check the 16mm/L zone: 16mm = ${valAt(r,"16") ?? "?"}, L = ${valAt(r,"L") ?? "?"}. If there is no 'mountain' left there, the reed loses its spring.` : "" });
-    out.push({ t: "A tighter 2nd wire can restore support", b: "A reversible step before scraping wood — start with the wire." });
+    out.push({ t: "Mushy = not enough support: usually too thin near the collar, or the aperture is too wide", b: hasData ? `Check the 16mm/L zone: 16mm = ${valAt(r,"16") ?? "?"}, L = ${valAt(r,"L") ?? "?"}. If there is no 'mountain' left there, the reed loses its spring.` : "", src: "General practice + your own profile plot (the 'mountain' concept)" });
+    out.push({ t: "A tighter 2nd wire can restore support", b: "A reversible step before scraping wood — start with the wire.", src: "General practice — wires before wood is the standard order of operations" });
   }
-  if (hasData && worst && worst.d > 3) out.push({ t: `⚠️ Largest blade difference: ${worst.p} (${worst.d})`, b: "Regardless of symptoms — balance this point and record the change in the 📈 history." });
+  if (hasData && worst && worst.d > 3) out.push({ t: `⚠️ Largest blade difference: ${worst.p} (${worst.d})`, b: "Regardless of symptoms — balance this point and record the change in the 📈 history.", src: "Your own measurement data" });
   return out;
 }
 function corrRow(label, d) {
@@ -708,7 +708,7 @@ function render() {
       <div class="sub" style="font-size:11px;margin-top:6px">Suggestions combine general reed-making practice with your own measurements. The cause is not always where it looks — record the outcome in the Log!</div>
       ${Object.values(diagSym).some(Boolean) ? `
         <div style="margin-top:14px">
-        ${sugg.length ? sugg.map(s => `<div class="entry" style="margin:8px 0"><div class="txt"><b>${esc(s.t)}</b>${s.b ? `<div class="sub" style="margin-top:4px">${esc(s.b)}</div>` : ""}</div></div>`).join("") : "<p class='txt'>Pick symptoms to see suggestions.</p>"}
+        ${sugg.length ? sugg.map(s => `<div class="entry" style="margin:8px 0"><div class="txt"><b>${esc(s.t)}</b>${s.b ? `<div class="sub" style="margin-top:4px">${esc(s.b)}</div>` : ""}${s.src ? `<div class="sub" style="margin-top:4px;font-size:10px;font-style:italic;color:#a8a29e">📚 ${esc(s.src)}</div>` : ""}</div></div>`).join("") : "<p class='txt'>Pick symptoms to see suggestions.</p>"}
         </div>` : ""}
       ${r.m && r.m.length >= 2 ? `<div style="margin-top:10px">${profilePlot(r)}</div>` : ""}
       ` : "<p class='txt' style='margin-top:10px'>Pick a reed from the library.</p>"}

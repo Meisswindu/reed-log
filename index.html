@@ -284,7 +284,7 @@ function parseReedMarkdown(text, fallbackId) {
     });
     if (changes.length) meas_log.push({ stamp: hm[1].trim(), changes });
   });
-  return {
+  const reed = {
     reed_id: fm.reed_id || fallbackId, datums: fm.datums || today(),
     shape: fm.shape || "", cane_manufacturer: fm.cane_manufacturer || "", metode: fm.metode || "", cane_hardness: fm.cane_hardness || "",
     wire_gauge: fm.wire_gauge || "", tip_profiler_setting: fm.tip_profiler_setting || "",
@@ -293,6 +293,11 @@ function parseReedMarkdown(text, fallbackId) {
     e_nestabila: fm.e_nestabila || "", e_pakape: fm.e_nestabilitates_pakape || "",
     m: meas, log, comments: notes, meas_log, e_log, _file: fallbackId + ".md"
   };
+  // dedupe measurement rows (last one wins)
+  const seenM = new Map();
+  reed.m.forEach(row => seenM.set(normPoint(row.point), row));
+  reed.m = [...seenM.values()].filter(row => String(row.left).trim() !== "" || String(row.right).trim() !== "");
+  return reed;
 }
 
 // ---------------- UI ----------------
@@ -454,7 +459,7 @@ function render() {
         <label>Mērījumi (mikrometrs, T=tip, L=spals)</label>
         <details open><summary style="font-size:12px;color:#78716c;cursor:pointer">kreisā puse = ar 1. drāti, labā = bez</summary>
           ${MM_POINTS.map(p => {
-            const row = f.m.find(x => normPoint(x.point) === p) || {left:"",right:""};
+            const row = f.m.find(x => normPoint(x.point) === normPoint(p)) || {left:"",right:""};
             return `<div style="display:flex;gap:6px;margin:4px 0;align-items:center"><span style="font-size:12px;color:#78716c;width:20px">${p}</span>
             <input style="height:32px" placeholder="ar 1. drāti" value="${esc(row.left)}" oninput="updM('${p}','left',this.value)">
             <input style="height:32px" placeholder="bez" value="${esc(row.right)}" oninput="updM('${p}','right',this.value)"></div>`;
@@ -544,7 +549,7 @@ function render() {
         <b style="font-size:14px">📐 Mērījumi <span class="sub" style="font-size:11px">(mikrometrs · T=tip, L=spals)</span></b>
         <div class="sub" style="font-size:11px;margin:4px 0 10px">kreisā puse = ar 1. drāti · labā = bez zināšanas</div>
         ${MM_POINTS.map(p => {
-          const row = r.m.find(x => normPoint(x.point) === p) || {left:"",right:""};
+          const row = r.m.find(x => normPoint(x.point) === normPoint(p)) || {left:"",right:""};
           return `<div style="display:flex;gap:8px;margin:6px 0;align-items:center">
             <span style="font-size:13px;color:#78716c;width:20px;text-align:center;font-weight:600">${p}</span>
             <input style="height:36px" placeholder="ar 1. drāti" value="${esc(row.left)}" oninput="editM('${p}','left',this.value)">
@@ -611,11 +616,11 @@ function render() {
 
 function updM(point, side, val) {
   const f = newForm;
-  let row = f.m.find(x => normPoint(x.point) === point);
+  let row = f.m.find(x => normPoint(x.point) === normPoint(point));
   if (!row) { row = { point, left: "", right: "" }; f.m.push(row); }
   row.point = point;
   row[side] = val;
-  if (!row.left && !row.right) f.m = f.m.filter(x => normPoint(x.point) !== point);
+  if (!row.left && !row.right) f.m = f.m.filter(x => normPoint(x.point) !== normPoint(point));
   document.getElementById("prev").textContent = reedToMarkdown(f);
 }
 
@@ -636,11 +641,11 @@ function suggestChips(key) {
 function editM(point, side, val) {
   const r = reeds.find(x => x.reed_id === editTarget);
   if (!r) return;
-  let row = r.m.find(x => normPoint(x.point) === point);
+  let row = r.m.find(x => normPoint(x.point) === normPoint(point));
   if (!row) { row = { point, left: "", right: "" }; r.m.push(row); }
   row.point = point;
   row[side] = val;
-  if (!row.left && !row.right) r.m = r.m.filter(x => normPoint(x.point) !== point);
+  if (!row.left && !row.right) r.m = r.m.filter(x => normPoint(x.point) !== normPoint(point));
   persist();
 }function setE(v) { const r = reeds.find(x => x.reed_id === editTarget); if (!r) return; r.e_nestabila = String(r.e_nestabila) === v ? "" : v; if (r.e_nestabila !== "jā") r.e_pakape = ""; persist(); render(); }
 function setEpak(n) { const r = reeds.find(x => x.reed_id === editTarget); if (!r) return; r.e_pakape = String(r.e_pakape) === String(n) ? "" : n; persist(); render(); }
@@ -685,21 +690,26 @@ function enterEdit(id) {
 function saveEdit() {
   const r = reeds.find(x => x.reed_id === editTarget);
   if (!r) { view = "library"; render(); return; }
+  // dedupe measurement rows (case/variant spellings of same point; last one wins)
+  const seen = new Map();
+  (r.m || []).forEach(row => seen.set(normPoint(row.point), row));
+  r.m = [...seen.values()].filter(row => String(row.left).trim() !== "" || String(row.right).trim() !== "");
   // harvest any uncommitted text so 💾 never discards what's on screen
   const pendingNote = (document.getElementById("newcomment")?.value || "").trim();
   if (pendingNote) { r.comments = r.comments || []; r.comments.push({ stamp: today(), text: pendingNote }); toast("💬 Piezīme pievienota ✓"); }
   const pendingLog = (typeof editDraft === "string" ? editDraft : "").trim() || (document.getElementById("editlog")?.value || "").trim();
   if (pendingLog) { r.log.push({ stamp: nowStamp(), rating: null, text: pendingLog }); editDraft = ""; toast("📝 Ieraksts pievienots ✓"); }
-  // diff measurements against entry baseline → record change history
+  // diff measurements against entry baseline → record change history (real changes only)
   const changes = [];
-  (r.m || []).forEach(row => {
+  r.m.forEach(row => {
     const old = (editBaseline || []).find(b => normPoint(b.point) === normPoint(row.point)) || {};
-    if (String(old.left ?? "") !== String(row.left ?? "") && String(row.left) !== "")
-      changes.push({ point: normPoint(row.point), side: "left", from: old.left || "–", to: row.left });
-    else if (String(old.left ?? "") !== String(row.left ?? "") && String(row.left) === "")
-      changes.push({ point: normPoint(row.point), side: "left", from: old.left || "–", to: "–" });
-    if (String(old.right ?? "") !== String(row.right ?? "") && String(row.right) !== "")
-      changes.push({ point: normPoint(row.point), side: "right", from: old.right || "–", to: row.right });
+    ["left","right"].forEach(side => {
+      const from = String(old[side] ?? "").trim(), to = String(row[side] ?? "").trim();
+      if (from !== to && to !== "" && from !== "")  // record only real value changes
+        changes.push({ point: normPoint(row.point), side, from, to });
+      else if (from !== to && to !== "" && from === "") // newly filled in
+        changes.push({ point: normPoint(row.point), side, from: "–", to });
+    });
   });
   if (changes.length) {
     r.meas_log = r.meas_log || [];

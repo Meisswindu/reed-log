@@ -215,14 +215,18 @@ async function commitFile(path, content, message) {
 async function pullFromGithub() {
   const dirPath = cfg.dir.split("/").map(encodeURIComponent).join("/");
   const dir = await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${dirPath}?ref=${cfg.branch}`);
+  const files = dir.filter(x => x.name.endsWith(".md"));
+  // fetch all notes in parallel (batches of 10 to stay API-polite)
   const out = [];
-  for (const f of dir.filter(x => x.name.endsWith(".md"))) {
-    try {
-      const blob = await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${encPath(f.path)}?ref=${cfg.branch}`);
-      const text = decodeURIComponent(escape(atob(blob.content)));
-      const r = parseReedMarkdown(text, f.name.replace(/\.md$/,""));
-      if (r) out.push(r);
-    } catch (e) { /* skip */ }
+  for (let i = 0; i < files.length; i += 10) {
+    const batch = await Promise.all(files.slice(i, i + 10).map(async f => {
+      try {
+        const blob = await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${encPath(f.path)}?ref=${cfg.branch}`);
+        const text = decodeURIComponent(escape(atob(blob.content)));
+        return parseReedMarkdown(text, f.name.replace(/\.md$/,""));
+      } catch (e) { return null; }
+    }));
+    batch.filter(Boolean).forEach(r => out.push(r));
   }
   // MERGE, not replace: keep local reeds that aren't on GitHub yet; GitHub wins on conflicts
   const local = reeds.filter(r => !out.some(g => (g._file || g.reed_id + ".md") === (r._file || r.reed_id + ".md")));

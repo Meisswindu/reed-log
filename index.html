@@ -666,6 +666,7 @@ function addComment() {
   const t = (inp?.value || "").trim();
   if (!t) return;
   const r = reeds.find(x => x.reed_id === editTarget);
+  if (!r) return;
   r.comments = r.comments || [];
   r.comments.push({ stamp: today(), text: t });
   persist(); render(); toast("Piezīme pievienota ✓");
@@ -683,6 +684,12 @@ function enterEdit(id) {
 }
 function saveEdit() {
   const r = reeds.find(x => x.reed_id === editTarget);
+  if (!r) { view = "library"; render(); return; }
+  // harvest any uncommitted text so 💾 never discards what's on screen
+  const pendingNote = (document.getElementById("newcomment")?.value || "").trim();
+  if (pendingNote) { r.comments = r.comments || []; r.comments.push({ stamp: today(), text: pendingNote }); toast("💬 Piezīme pievienota ✓"); }
+  const pendingLog = (typeof editDraft === "string" ? editDraft : "").trim() || (document.getElementById("editlog")?.value || "").trim();
+  if (pendingLog) { r.log.push({ stamp: nowStamp(), rating: null, text: pendingLog }); editDraft = ""; toast("📝 Ieraksts pievienots ✓"); }
   // diff measurements against entry baseline → record change history
   const changes = [];
   (r.m || []).forEach(row => {

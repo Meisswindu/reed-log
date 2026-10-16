@@ -176,6 +176,10 @@ function corrRow(label, d) {
   const u = d.unstable, s = d.stable;
   return `<tr><td>${label}</td><td>${u.diff.toFixed(1)}</td><td>${s.diff.toFixed(1)}</td><td style="font-weight:700;color:${u.diff > s.diff ? "#b91c1c" : "#15803d"}">${u.diff > s.diff ? "↑" : "↓"} ${Math.abs(u.diff - s.diff).toFixed(1)}</td></tr>`;
 }
+function sortedForLibrary() {
+  const rank = s => s === "aktīva" ? 0 : s === "testēšanā" ? 1 : s === "rezerve" ? 2 : 3; // nolietota/salauzta last
+  return [...reeds].sort((a,b) => rank(a.status) - rank(b.status) || String(b.datums || "").localeCompare(String(a.datums || "")) || a.reed_id.localeCompare(b.reed_id));
+}
 function sparkline(values) {
   if (values.length < 2) return "";
   const w=100, h=24, pts = values.map((v,i)=>`${(i/(values.length-1))*w},${h-(v/10)*h}`).join(" ");
@@ -490,7 +494,7 @@ function render() {
         <div style="display:flex;justify-content:space-between"><b style="font-size:13px">Līdzīgas mēles: ${esc(sel.reed_id)}</b><button class="chip" onclick="selectedMatch=null;render()">notīrīt</button></div>
         ${matches.length ? matches.map(({r,s}) => `<div class="matchrow"><span><b>${esc(r.reed_id)}</b></span><span class="txt">${esc(r.cane_manufacturer||"?")} · TP ${esc(r.tip_profiler_setting||"?")}</span><span class="star">${Math.min(99,Math.round(s*9))}% match</span></div>`).join("") : "<p class='txt'>Nav tuvu sakritību.</p>"}
       </div>` : ""}
-      ${reeds.map(r => {
+      ${sortedForLibrary().map(r => {
         const hist = ratingHistory(r);
         return `<div class="card">
           <div style="display:flex;justify-content:space-between;align-items:start">

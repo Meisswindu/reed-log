@@ -747,8 +747,8 @@ function render() {
   else if (view === "diag") {
     const r = reeds.find(x => x.reed_id === diagReed);
     const SYMPTOMS = [["stuffy","👶 Stuffy / heavy"],["flat","📉 Flat pitch"],["sharp","📈 Sharp pitch"],["unresp","🥱 Unresponsive"],["einstab","🎵 Unstable E"],["mushy","🫠 Mushy / no support"],["strong","💪 Strong"],["weak","🍂 Weak"],["freeblow","💨 Free blowing"]];
-    const CROW = sym.crow ? `<div style="margin-top:10px"><label>🐦 Crow test — which crow is missing?</label>
-      <div class="chips">${[["none","(none)"],["tip","no pp crow → tip"],["mid","no 2nd crow → mid"],["back","no full crow → back"]].map(([k,label]) => `<button class="chip ${sym.crow===k?"on":""}" onclick="diagSym.crow='${k}';render()">${label}</button>`).join("")}</div>
+    const CROW = diagSym.crow ? `<div style="margin-top:10px"><label>🐦 Crow test — which crow is missing?</label>
+      <div class="chips">${[["none","(none)"],["tip","no pp crow → tip"],["mid","no 2nd crow → mid"],["back","no full crow → back"]].map(([k,label]) => `<button class="chip ${diagSym.crow===k?"on":""}" onclick="diagSym.crow='${k}';render()">${label}</button>`).join("")}</div>
       <div class="sub" style="font-size:11px;margin-top:4px">Blade in mouth to the top wire, blow at ~piano pressure. Three crows should emerge at increasing pressure (Popkin & Glickman).</div></div>` : "";
     const sugg = diagnose(r, diagSym);
     app.innerHTML = `

@@ -238,6 +238,26 @@ function diagnose(r, sym) {
   if (sym.mushy) {
     out.push({ t: "Mushy = not enough support: usually too thin near the collar, or the aperture is too wide", b: hasData ? `Check the 16mm/L zone: 16mm = ${valAt(r,"16") ?? "?"}, L = ${valAt(r,"L") ?? "?"}. If there is no 'mountain' left there, the reed loses its spring.` : "", src: "General practice + your own profile plot (the 'mountain' concept)" });
     out.push({ t: "A tighter 2nd wire can restore support", b: "A reversible step before scraping wood — start with the wire.", src: "General practice — wires before wood is the standard order of operations" });
+    out.push({ t: "Rails too thin too far back = flat and stuffy; collapsed channels at the tip = likely bad cane", b: "Craypo: collapsed channels are generally a symptom of bad cane, probably not salvageable — don't over-invest in such a reed.", src: "Craypo, 'The Banana of Life' Part 2 (Rails p.23, Tip Opening p.25)" });
+  }
+  const CRAY = "Craypo, 'The Banana of Life' Part 2 — Indicator Notes / Visual Cues";
+  if (sym.stuffy) {
+    out.push({ t: "Check the tip bevel: 45° angle in the front 0.5mm", b: "Craypo calls the tip bevel 'the most important place on the reed' — too shallow a bevel = stuffy, sluggish response and a weak, collapsing tip. Knife straight into the plaque, no scooping.", src: CRAY + " (Tip Bevel, p.26)" });
+    out.push({ t: "Rails too weak vs spine = small, stuffy, collapses under correct embouchure", b: "Rails must taper evenly collar→tip. Test with your default support structure — not one adapted to a bad reed.", src: CRAY + " (Rails, p.23)" });
+  }
+  if (sym.unresp) {
+    out.push({ t: "B3 pinchy test: areas behind the tip too strong vs the very tip", b: "If B3 changes unmanageably fast under applied embouchure/air (Rachael Young test), refine the tapers just behind the tip. Result: more stable.", src: CRAY + " (B3 Pinchy Test, p.21)" });
+    out.push({ t: "Scooped tip bevel = hesitant attacks in p/mp, esp. tenor register", b: "Re-check the bevel — knife straight into the plaque.", src: CRAY + " (Tip Bevel, p.26)" });
+  }
+  if (sym.sharp) {
+    out.push({ t: "Bb2 indicator: needs too much embouchure to play in tune → reed is weak; round the 1st wire (2nd if needed)", b: "Result: more stable, sharper, less responsive, more resistant. This is the wire route to raising pitch.", src: CRAY + " (Bb2, p.18)" });
+  }
+  if (sym.flat) {
+    out.push({ t: "F2 indicator: sharp mf attack on F2 = front third too heavy compared to the back", b: "Scrape the front third; result: weaker, flatter, more responsive, freer blowing. Combine with F#3, Bb3, A3 speaker key and F4 readings to locate the zone.", src: CRAY + " (F2, p.20)" });
+  }
+  if (sym.einstab || r.e_nestabila === "jā") {
+    out.push({ t: "Eb4 indicator: unstable Eb4 (with resonance key) = rails in the middle third too thick vs the spine", b: "Work in VERY small increments, integrated with the overall rail taper. Result: more stable, less responsive, more resistant. (D4 is affected too.)", src: CRAY + " (Eb4/D4, p.19)" });
+    out.push({ t: "Short Eb3/F4 cross-check: Eb3 sharp/unstable + F4 flat = too much cane in back-third channels", b: "Both readings together point at the back third rather than the rails.", src: CRAY + " (Short Eb3/F4, p.19)" });
   }
   if (hasData && worst && worst.d > 3) out.push({ t: `⚠️ Largest blade difference: ${worst.p} (${worst.d})`, b: "Regardless of symptoms — balance this point and record the change in the 📈 history.", src: "Your own measurement data" });
   return out;

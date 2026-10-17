@@ -74,7 +74,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v14</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v15</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -258,6 +258,18 @@ function diagnose(r, sym) {
   if (sym.einstab || r.e_nestabila === "jā") {
     out.push({ t: "Eb4 indicator: unstable Eb4 (with resonance key) = rails in the middle third too thick vs the spine", b: "Work in VERY small increments, integrated with the overall rail taper. Result: more stable, less responsive, more resistant. (D4 is affected too.)", src: CRAY + " (Eb4/D4, p.19)" });
     out.push({ t: "Short Eb3/F4 cross-check: Eb3 sharp/unstable + F4 flat = too much cane in back-third channels", b: "Both readings together point at the back third rather than the rails.", src: CRAY + " (Short Eb3/F4, p.19)" });
+  }
+  const SCH = "Schillinger (Reeds 'n Stuff guide, after Eubanks)";
+  if (sym.einstab || r.e_nestabila === "jå" || r.e_nestabila === "jā") {
+    out.push({ t: "Eubanks harmonic comparison (tenor/individual notes): alternate normal vs flageolet fingering", b: "Harmonic pitch TOO HIGH → scrape the corresponding spot in the CHANNEL. Harmonic pitch TOO LOW → scrape the corresponding spot on the RAILS. Note-per-note diagnostic that maps each unstable note to a physical reed location — works for E and any problem note.", src: SCH + " (Advanced Intonation)" });
+    out.push({ t: "Ab–B trill test (green tone hole): unstable trill sound → scrape the 'ears' of the reed", b: "Schillinger's low/middle register centering test from the same system.", src: SCH });
+  }
+  if (sym.sharp) {
+    out.push({ t: "Too sharp when played LOUDLY → thin only the extreme tip", b: "Distinct from general sharpness fixes: this symptom specifically points at the very tip. (Complements Craypo's F2 indicator for mf attacks.)", src: SCH });
+  }
+  if (sym.mushy || sym.unresp) {
+    out.push({ t: "Hard verdict: one blade round and the other flat → discard the reed", b: "Schillinger gives this construction flaw no rescue route — like Craypo's RIP verdicts. Check tip opening symmetry before investing more time.", src: SCH });
+    out.push({ t: "Check inside the bore: protruding fibres/splinters = unexplained resistance", b: "Round file inside the tube. Also: shoulder must be straight, clean, clearly defined — redefine with razor if needed.", src: SCH });
   }
   const P1 = "Craypo/Kamins, Mechanisms of Change (Part 1)";
   out.push({ t: "Wire mechanics — the complete two-wire table (Kamins/Craypo)", b: "Both wires: ROUND = sharper, stronger, more resistant, darker. FLAT = flatter, weaker, less resistant, brighter. They differ only in tip direction: wire 1 round opens the tip, wire 2 round closes it. (This completes the picture the shop guides showed partially.)", src: P1 + " (Wires, p.2)" });

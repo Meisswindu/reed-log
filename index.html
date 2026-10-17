@@ -259,8 +259,26 @@ function diagnose(r, sym) {
     out.push({ t: "Eb4 indicator: unstable Eb4 (with resonance key) = rails in the middle third too thick vs the spine", b: "Work in VERY small increments, integrated with the overall rail taper. Result: more stable, less responsive, more resistant. (D4 is affected too.)", src: CRAY + " (Eb4/D4, p.19)" });
     out.push({ t: "Short Eb3/F4 cross-check: Eb3 sharp/unstable + F4 flat = too much cane in back-third channels", b: "Both readings together point at the back third rather than the rails.", src: CRAY + " (Short Eb3/F4, p.19)" });
   }
+  // CYORMA combination verdicts (Craypo Part 3)
+  const S = k => !!sym[k];
+  const combo = [];
+  const strong = S("strong"), weak = S("weak"), free = S("freeblow");
+  const sharp = S("sharp"), flat = S("flat"), unst = S("einstab"), stuffy = S("stuffy");
+  const P3 = "Craypo, CYORMA Part 3";
+  if (sharp && weak && (stuffy || free)) combo.push({ t: "🪦 RIP — sharp + weak = bad cane (Day 3+)", b: "Craypo: these are not complementary objectives — most likely culprit is bad cane quality or unbalanced construction (e.g. too much off the rails too far back). 'Return to page 35 to begin your next adventure.' Don't waste your life force on it.", src: P3 + " (pp.53–54)" });
+  if (flat && weak && stuffy) combo.push({ t: "🪦 RIP — flat + weak + stuffy = bad cane or unbalanced construction", b: "Craypo: not complementary objectives. Start a new reed.", src: P3 + " (p.57)" });
+  if (unst && weak && stuffy) combo.push({ t: "🪦 RIP — unstable + weak + stuffy = bad cane", b: "Craypo: not complementary objectives. Start a new reed.", src: P3 + " (p.63)" });
+  if (flat && strong && stuffy) combo.push({ t: "💀 Flat + strong + stuffy: 'You're screwed, but if you have to play on this reed…'", b: "Narrow the flare evenly on both sides with sandpaper — rails are too thin too far back and this makes them seem thicker vs the spine. Reed will seem stronger, sharper, more resistant. 'But you should probably just give up.'", src: P3 + " (p.59)" });
+  if (sharp && strong && stuffy) combo.push({ t: "Sharp + strong + stuffy → remove cane front & middle thirds, closer to spine", b: "Common symptom of cane not holding the trim, or the whole reed is too heavy. Check: critical point thickness, reed length, flatten 1st wire. Leave the back as strong as possible.", src: P3 + " (p.51)" });
+  if (sharp && strong && free) combo.push({ t: "Sharp + strong + free blowing → remove cane for ease, steeper tapers in front third", b: "Work all over (keep the back strong), steeper front-third tapers for resistance.", src: P3 + " (p.52)" });
+  if (flat && strong && free) combo.push({ t: "Flat + strong + free blowing → steeper tapers, work mostly middle third closer to rails", b: "Check reed length, critical point, 2nd wire snug, round the tube.", src: P3 + " (p.58)" });
+  if (flat && weak && free) combo.push({ t: "Flat + weak + free blowing → steeper tapers overall, mostly front third toward rails", b: "Cane likely soft. Round the tube (E3/C#3 dropping?); round 1st wire if you need more cane to work with; clip only as a last ditch effort.", src: P3 + " (p.56)" });
+  if (unst && strong && free) combo.push({ t: "Unstable + strong + free blowing → remove cane for ease, steeper tapers for stability", b: "Work mostly middle and front third channels toward rails.", src: P3 + " (p.62)" });
+  if (unst && strong && stuffy) combo.push({ t: "Unstable + strong + stuffy → remove cane for ease, steeper tapers, channels near spine", b: "Work mostly middle and front thirds; flatten the tube if tip opening allows.", src: P3 + " (p.64)" });
+  if (weak) combo.push({ t: "Strength indicators — quick check", b: "Low register easy / high register difficult = weak; slurring up difficult = weak; very little embouchure manipulation needed in low register = weak.", src: P3 + " (Strength indicators, p.40)" });
+  if (free) combo.push({ t: "Free blowing + otherwise good: will this reed age into better resistance?", b: "Craypo's rate-of-change question — the same trait that makes it free blowing now may settle. Steeper tapers closer to rails, remove very little cane.", src: P3 + " (p.60)" });
   if (hasData && worst && worst.d > 3) out.push({ t: `⚠️ Largest blade difference: ${worst.p} (${worst.d})`, b: "Regardless of symptoms — balance this point and record the change in the 📈 history.", src: "Your own measurement data" });
-  return out;
+  return out.concat(combo);
 }
 function corrRow(label, d) {
   if (!d.unstable || !d.stable) return "";
@@ -719,7 +737,7 @@ function render() {
 
   else if (view === "diag") {
     const r = reeds.find(x => x.reed_id === diagReed);
-    const SYMPTOMS = [["stuffy","👶 Stuffy / heavy"],["flat","📉 Flat pitch"],["sharp","📈 Sharp pitch"],["unresp","🥱 Unresponsive"],["einstab","🎵 Unstable E"],["mushy","🫠 Mushy / no support"]];
+    const SYMPTOMS = [["stuffy","👶 Stuffy / heavy"],["flat","📉 Flat pitch"],["sharp","📈 Sharp pitch"],["unresp","🥱 Unresponsive"],["einstab","🎵 Unstable E"],["mushy","🫠 Mushy / no support"],["strong","💪 Strong"],["weak","🍂 Weak"],["freeblow","💨 Free blowing"]];
     const sugg = diagnose(r, diagSym);
     app.innerHTML = `
     <div class="card">

@@ -74,7 +74,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v13</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v14</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -258,6 +258,15 @@ function diagnose(r, sym) {
   if (sym.einstab || r.e_nestabila === "jā") {
     out.push({ t: "Eb4 indicator: unstable Eb4 (with resonance key) = rails in the middle third too thick vs the spine", b: "Work in VERY small increments, integrated with the overall rail taper. Result: more stable, less responsive, more resistant. (D4 is affected too.)", src: CRAY + " (Eb4/D4, p.19)" });
     out.push({ t: "Short Eb3/F4 cross-check: Eb3 sharp/unstable + F4 flat = too much cane in back-third channels", b: "Both readings together point at the back third rather than the rails.", src: CRAY + " (Short Eb3/F4, p.19)" });
+  }
+  const P1 = "Craypo/Kamins, Mechanisms of Change (Part 1)";
+  out.push({ t: "Wire mechanics — the complete two-wire table (Kamins/Craypo)", b: "Both wires: ROUND = sharper, stronger, more resistant, darker. FLAT = flatter, weaker, less resistant, brighter. They differ only in tip direction: wire 1 round opens the tip, wire 2 round closes it. (This completes the picture the shop guides showed partially.)", src: P1 + " (Wires, p.2)" });
+  out.push({ t: "Thumbnail keystone: it can be extremely small, but it must be there", b: "The keystone of the thumbnail keeps the tip opening from collapsing — like the keystone of a stone arch. If E collapses under air, check the thumbnail structure before scraping more.", src: P1 + " (Scrape, p.4)" });
+  if (sym.einstab || r.e_nestabila === "jā") {
+    out.push({ t: "Structural causes are a root-cause category: profile contour and blank construction", b: "Kamins/Craypo: reed problems are material, trim, or STRUCTURE. A blank's profiler contour can unbalance the reed before you ever touch it — supports the day-1 TP-depth hypothesis. Also: 'some profilers remove too much cane from the channels compared to the spine.'", src: P1 + " (Introduction; Chronic Fix p.65)" });
+  }
+  if (sym.unresp || sym.stuffy) {
+    out.push({ t: "Location map: response/intonation/resonance live in the FRONT third; blowing comfort in middle+back thirds", b: "Within any zone: toward rails = sharper/stronger/more resistant; toward spine = flatter/weaker/more free blowing. The map behind all the indicator notes.", src: P1 + " (Scrape, p.5)" });
   }
   const PGT = "Popkin & Glickman, 'Bassoon Reed Making' (Reed Tuning, pp.72–73)";
   if (sym.sharp) {

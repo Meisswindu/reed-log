@@ -74,7 +74,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v10</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v11</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -259,6 +259,29 @@ function diagnose(r, sym) {
     out.push({ t: "Eb4 indicator: unstable Eb4 (with resonance key) = rails in the middle third too thick vs the spine", b: "Work in VERY small increments, integrated with the overall rail taper. Result: more stable, less responsive, more resistant. (D4 is affected too.)", src: CRAY + " (Eb4/D4, p.19)" });
     out.push({ t: "Short Eb3/F4 cross-check: Eb3 sharp/unstable + F4 flat = too much cane in back-third channels", b: "Both readings together point at the back third rather than the rails.", src: CRAY + " (Short Eb3/F4, p.19)" });
   }
+  const DRL = "Double Reed Ltd guide (Ludlow, 2018) — doublereed.co.uk";
+  if (sym.stuffy) {
+    out.push({ t: "High registers stuffy → too thick on the edges and corners of the blades", b: "Scrape the blade edges and corners specifically — not the middle.", src: DRL + " (symptom table)" });
+    out.push({ t: "Stiff and hesitant across ALL notes → too thick everywhere; scrape the bright areas, avoid spine and heart", b: "One blade may scrape more easily than the other — adjust your pressure accordingly.", src: DRL + " (symptom table)" });
+  }
+  if (sym.sharp) {
+    out.push({ t: "Sharp middle C → cane too thick at the tip", b: "Their scrape zone: the tip. Fine sandpaper at 25° also works.", src: DRL + " (symptom table)" });
+    out.push({ t: "Wire squeeze option: wire 1 from top/bottom → slightly lower pitch, brighter, easier control", b: "Caveat from the same guide: overdo it and the wire gets too flat → high notes go flat, reed hard to control. Quarter adjustments only.", src: DRL + " (wire matrix)" });
+  }
+  if (sym.unresp) {
+    out.push({ t: "Which register is unresponsive? High → channels between blade edge and spine; Low → bottom quarter above the collar", b: "Their register-specific scrape map — tell the two apart before scraping.", src: DRL + " (symptom table)" });
+    out.push({ t: "'Eyes' test: play middle C, then the harmonic (low F fingering + C vent key)", b: "If the harmonic blows sharp → too much cane in the eyes/tip of the reed. Scrape or sand until the two pitches match. (Tip credited to bassoonist Sean Massey.)", src: DRL + " (eyes test)" });
+  }
+  if (sym.freeblow) {
+    out.push({ t: "Wire squeeze option: wire 1 from the sides → more resistant, darker, projects more", b: "Widens the tip opening. Keep wire 1 oval — too round makes low notes sharp.", src: DRL + " (wire matrix)" });
+  }
+  if (sym.flat) {
+    out.push({ t: "Wire squeeze option: wire 1 from the sides raises pitch slightly (darker, more resistant)", b: "The wire route to sharpening — squeeze from the sides, never over-round.", src: DRL + " (wire matrix)" });
+  }
+  if (sym.mushy) {
+    out.push({ t: "Tip opening target: 1–1.5mm (≈10% of tip width), even symmetrical curve, 45° corners", b: "Also: before wire work, try squeezing the blades together along the spine sides with fingers — sometimes enough on its own.", src: DRL + " (tip opening)" });
+  }
+  out.push({ t: "Wire hygiene: expect re-tension every 3–4 weeks with regular use; don't adjust them 'every time you play'", b: "Each adjustment moves wires from intended shape; kinks are hard to reverse. Loose wires → low-pitched distorted crow; over-tight → choked, higher-pitched.", src: DRL + " (wire tightness)" });
   const PG = "Popkin & Glickman, 'Bassoon Reed Making' (crowing chapter)";
   if (sym.crow) {
     if (sym.crow === "tip") out.push({ t: "No pp crow → too much material at the tip", b: "Crow the reed blade-in-mouth to the top wire at piano pressure: three crows should emerge at increasing pressure. Absence at pianissimo level = too much cane at the tip.", src: PG + " (p.65)" });

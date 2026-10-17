@@ -74,7 +74,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds</div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v10</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -401,6 +401,7 @@ function parseReedMarkdown(text, fallbackId) {
     const hm = line.match(/^\s*(\d{4}-\d{2}-\d{2}[ \d:]*):\s*(.+)/);
     if (!hm) return;
     const changes = [];
+    const fchanges = [];
     hm[2].split(";").forEach(part => {
       const pm = part.trim().match(/^(\S+)\s+(kreisā|labā|1\. puse|2\. puse)\s+(\S+?)→(\S+)$/);
       if (pm) changes.push({ point: pm[1], side: (pm[2] === "kreisā" || pm[2] === "1. puse") ? "left" : "right", from: pm[3], to: pm[4] });

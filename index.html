@@ -141,9 +141,10 @@ function reedToMarkdown(r) {
   const meas = r.m.length ? "\n" + r.m.map(row => `${row.point} - ${row.left}, ${row.right}`).join("\n") + "\n" : "";
   const measHist = (r.meas_log || []).map(h => `${h.stamp}: ${h.changes.map(c => `${c.point} ${c.side === "left" ? "1. puse" : "2. puse"} ${c.from}→${c.to}`).join("; ")}`).join("\n");
   const eHist = (r.e_log || []).map(h => `${h.stamp}: E ${h.from} → ${h.to}`).join("\n");
+  const fHist = (r.field_log || []).map(h => `${h.stamp}: ${h.changes.map(c => `${c.k} ${c.from}→${c.to}`).join("; ")}`).join("\n");
   const log = r.log.map(e => `${e.stamp}\n\n${e.rating ? `**Reitings: ${e.rating}/10**\n\n` : ""}${e.text}`).join("\n\n");
   const comments = (r.comments || []).map(c => `${c.stamp} — ${c.text}`).join("\n");
-  return fm + "\n## Mērījumi \n" + meas + (measHist ? "\n### Vēsture\n" + measHist + "\n" : "") + "\n## Testēšana \n" + (eHist ? "\n" + eHist + "\n" : "") + "\n## Piezīmes \n" + (comments ? "\n" + comments + "\n" : "") + "\n## Log\n" + (log ? "\n" + log + "\n" : "");
+  return fm + "\n## Mērījumi \n" + meas + (measHist || fHist ? "\n### Vēsture\n" + [measHist, fHist].filter(Boolean).join("\n") + "\n" : "") + "\n## Testēšana \n" + (eHist ? "\n" + eHist + "\n" : "") + "\n## Piezīmes \n" + (comments ? "\n" + comments + "\n" : "") + "\n## Log\n" + (log ? "\n" + log + "\n" : "");
 }
 
 function ratingHistory(r) { const h = []; if (r.reitings_sākumā) h.push(r.reitings_sākumā); r.log.forEach(e => e.rating && h.push(e.rating)); if (r.reitings_tagad && String(r.reitings_tagad) !== String(h[h.length-1] ?? "")) h.push(r.reitings_tagad); return h; }
@@ -201,6 +202,7 @@ function profilePlot(r) {
     </div>
   </div>`;
 }
+const FIELD_LABELS = { wire_1: "1. drāts", wire_2: "2. drāts", wire_3: "3. drāts", status: "statuss", reitings_tagad: "reitings", reitings_sakumā: "reitings sākumā", metode: "metode", tip_profiler_setting: "TP iestatījums" };
 let diagReed = null; let diagSym = {};
 function diffAt(r, p) { const row = (r.m || []).find(x => normPoint(x.point) === normPoint(p)); if (!row || !row.left || !row.right) return null; return Math.abs(Number(row.left) - Number(row.right)); }
 function valAt(r, p) { const row = (r.m || []).find(x => normPoint(x.point) === normPoint(p)); return row ? (Number(row.left) || 0) : null; }
@@ -347,6 +349,7 @@ function parseReedMarkdown(text, fallbackId) {
   });
   const histSec = (measSec.split(/### Vēsture\s*\n/)[1] || "");
   const meas_log = [];
+  const field_log = [];
   histSec.split("\n").forEach(line => {
     const hm = line.match(/^\s*(\d{4}-\d{2}-\d{2}[ \d:]*):\s*(.+)/);
     if (!hm) return;
@@ -354,8 +357,11 @@ function parseReedMarkdown(text, fallbackId) {
     hm[2].split(";").forEach(part => {
       const pm = part.trim().match(/^(\S+)\s+(kreisā|labā|1\. puse|2\. puse)\s+(\S+?)→(\S+)$/);
       if (pm) changes.push({ point: pm[1], side: (pm[2] === "kreisā" || pm[2] === "1. puse") ? "left" : "right", from: pm[3], to: pm[4] });
+      const fm2 = part.trim().match(/^(wire_[123]|status|reitings_tagad|reitings_sakumā|metode|tip_profiler_setting)\s+(.+?)→(.+)$/);
+      if (fm2) fchanges.push({ k: fm2[1], from: fm2[2], to: fm2[3] });
     });
     if (changes.length) meas_log.push({ stamp: hm[1].trim(), changes });
+    if (fchanges.length) field_log.push({ stamp: hm[1].trim(), changes: fchanges });
   });
   const reed = {
     reed_id: fm.reed_id || fallbackId, datums: fm.datums || today(),
@@ -364,7 +370,7 @@ function parseReedMarkdown(text, fallbackId) {
     status: fm.status || "testēšanā", saistīts_ar: fm.saistīts_ar || "",
     reitings_sākumā: fm.reitings_sākumā || "", reitings_tagad: fm.reitings_tagad || "",
     e_nestabila: fm.e_nestabila || "", e_pakape: fm.e_nestabilitates_pakape || "",
-    m: meas, log, comments: notes, meas_log, e_log, _file: fallbackId + ".md"
+    m: meas, log, comments: notes, meas_log, field_log, e_log, _file: fallbackId + ".md"
   };
   // migrate legacy "copper, steel, steel" → wire_1/2/3
   if (!reed.wire_1 && !reed.wire_2 && !reed.wire_3 && reed.wire_gauge) {
@@ -388,6 +394,7 @@ let editTarget = null;
 let editDraft = "";
 let editBaseline = null;
 let editBaselineE = null;
+let editBaselineF = null;
 let wireSel = { wire: null, action: null };
 let wireTo = "";
 
@@ -642,7 +649,7 @@ function render() {
         ${(r.meas_log || []).length ? `
           <div style="margin-top:14px;border-top:1px solid #e7e5e4;padding-top:10px">
           <label>📈 Vēsture — kā mērījumi mainījās</label>
-          ${r.meas_log.slice().reverse().map(h => `<div class="entry" style="margin:6px 0"><div class="stamp">${esc(h.stamp)}</div><div class="txt">${h.changes.map(c => `${esc(c.point)} ${c.side === "left" ? "1. puse" : "2. puse"}: <b style="color:#b91c1c">${esc(c.from)}</b> → <b style="color:#15803d">${esc(c.to)}</b>`).join(" · ")}</div></div>`).join("")}
+          ${[...r.meas_log.map(h => ({ stamp: h.stamp, txt: h.changes.map(c => `${esc(c.point)} ${c.side === "left" ? "1. puse" : "2. puse"}: <b style="color:#b91c1c">${esc(c.from)}</b> → <b style="color:#15803d">${esc(c.to)}</b>`).join(" · ") })), ...(r.field_log || []).map(h => ({ stamp: h.stamp, txt: h.changes.map(c => `${esc(FIELD_LABELS[c.k] || c.k)}: <b style="color:#b91c1c">${esc(c.from)}</b> → <b style="color:#15803d">${esc(c.to)}</b>`).join(" · ") }))].sort((a,b) => String(b.stamp).localeCompare(String(a.stamp))).map(h => `<div class="entry" style="margin:6px 0"><div class="stamp">${esc(h.stamp)}</div><div class="txt">${h.txt}</div></div>`).join("")}
           </div>` : ""}
         </div>
       </div>
@@ -798,6 +805,7 @@ function enterEdit(id) {
   const r = reeds.find(x => x.reed_id === id);
   editBaseline = r ? JSON.parse(JSON.stringify(r.m)) : [];
   editBaselineE = r ? { nest: r.e_nestabila, pak: r.e_pakape } : {};
+  editBaselineF = r ? { wire_1: r.wire_1 || "", wire_2: r.wire_2 || "", wire_3: r.wire_3 || "", status: r.status || "", reitings_tagad: String(r.reitings_tagad ?? ""), reitings_sakumā: String(r.reitings_sākumā ?? ""), metode: r.metode || "", tip_profiler_setting: r.tip_profiler_setting || "" } : {};
   view = "edit"; render();
 }
 function saveEdit() {
@@ -837,6 +845,18 @@ function saveEdit() {
     r.e_log = r.e_log || [];
     r.e_log.push({ stamp: nowStamp(), from: eBefore, to: eAfter });
     toast("🎵 E stabilitātes izmaiņa pierakstīta vēsturē ✓");
+  }
+  // Field-change history (wires, status, ratings, TP setting, metode)
+  const F_LABELS = FIELD_LABELS;
+  const fChanges = [];
+  Object.keys(F_LABELS).forEach(k => {
+    const from = String(editBaselineF?.[k] ?? ""), to = String(r[k] ?? "");
+    if (from !== to && (from || to)) fChanges.push({ k, from: from || "–", to: to || "–" });
+  });
+  if (fChanges.length) {
+    r.field_log = r.field_log || [];
+    r.field_log.push({ stamp: nowStamp(), changes: fChanges });
+    toast(`🔧 ${fChanges.map(c => F_LABELS[c.k] + ": " + c.from + " → " + c.to).join(" · ")} — pierakstīts vēsturē ✓`);
   }
   persist(); toast("Izmaiņas saglabātas ✓");
   view = "library"; render();

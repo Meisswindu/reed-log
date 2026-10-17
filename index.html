@@ -74,7 +74,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v12</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v13</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -259,6 +259,18 @@ function diagnose(r, sym) {
     out.push({ t: "Eb4 indicator: unstable Eb4 (with resonance key) = rails in the middle third too thick vs the spine", b: "Work in VERY small increments, integrated with the overall rail taper. Result: more stable, less responsive, more resistant. (D4 is affected too.)", src: CRAY + " (Eb4/D4, p.19)" });
     out.push({ t: "Short Eb3/F4 cross-check: Eb3 sharp/unstable + F4 flat = too much cane in back-third channels", b: "Both readings together point at the back third rather than the rails.", src: CRAY + " (Short Eb3/F4, p.19)" });
   }
+  const PGT = "Popkin & Glickman, 'Bassoon Reed Making' (Reed Tuning, pp.72–73)";
+  if (sym.sharp) {
+    out.push({ t: "Sharp: check the four Popkin causes before scraping", b: "Undeveloped crow (→ scrape to establish triple crow) · narrow throat (→ wider shaper) · short blade or tube (→ +1mm) · top wire too tight (→ loosen slightly).", src: PGT + " (tuning table)" });
+  }
+  if (sym.flat) {
+    out.push({ t: "Flat: check the four Popkin causes", b: "Flat crow (→ cut tip 1mm & rebalance) · wide throat (→ narrower shaper/more bevel) · long blade or tube (→ −1mm) · top wire loose (→ tighten slightly).", src: PGT + " (tuning table)" });
+    out.push({ t: "Too dark? Popkin: spine too hard → thin the spine in the mid-section; top wire tight → loosen", b: "Also from the same table: cane too soft → harder cane, thinner gouge, sandpaper finish (sandpaper packs material in → brighter).", src: PGT });
+  }
+  if (sym.stuffy || sym.unresp) {
+    out.push({ t: "Resistant: blade edges too heavy → remove edge cane preserving linearity; or residue in the bore", b: "Also check for leaks (seams: shift blades slightly, lower top wire). Undeveloped crow → scrape to establish the triple crow.", src: PGT + " (tuning table)" });
+    out.push({ t: "Final-stage response ease: remove cane from the mid-section between spine and blade edges", b: "Popkin: this collapses the quadrants at the tip, lessening resistance. Scalpel (pulled, not pushed) disturbs the surface least.", src: PGT + " (blade finishing)" });
+  }
   const CS = "Crook & Staple guide (Petrie) — crookandstaple.com";
   if (sym.einstab || r.e_nestabila === "jā") {
     out.push({ t: "E/C# dip flat when played LOUD → check order: balance → 2nd wire tight → then tiny clips", b: "Their exact recipe: (1) make sure the reed is balanced (mirror-scrape both blades), (2) tighten the 2nd wire so it cannot be moved, (3) clip a very, very small amount of the tip at a time, testing E/C# loudly after each clip until the flat unstable E is gone.", src: CS + " (Tips — E and C#)" });
@@ -268,7 +280,7 @@ function diagnose(r, sym) {
     out.push({ t: "Wires first — because wire changes are reversible, scraping is not", b: "Their principle: always exhaust wire adjustments before taking cane off. Soak ~1 min first.", src: CS + " (Adjusting the Wires)" });
   }
   if (sym.unresp) {
-    out.push({ t: "Wire 1 rounder (squeeze sides) → flatter; more oval (squeeze top/bottom) → sharper, more responsive", b: "NOTE: this contradicts Double Reed Ltd on wire-1 pitch direction — test which holds on your reeds and log the outcome. One of them will match your setup better.", src: CS + " (The 1st Wire) vs Double Reed Ltd" });
+    out.push({ t: "Wire 1 rounder (squeeze sides) → flatter; more oval (squeeze top/bottom) → sharper, more responsive", b: "NOTE: Double Reed Ltd says the opposite on wire-1 pitch; Popkin & Glickman's tuning table agrees with Crook & Staple (2 sources vs 1 — majority: sides = sharper). Test on your reeds and log the outcome.", src: CS + " (The 1st Wire) + Popkin & Glickman p.70" });
   }
   if (sym.sharp) {
     out.push({ t: "Wire 1 more oval (top/bottom squeeze) → sharper, more responsive; rounder (sides) → flatter", b: "See the contradiction note — sources disagree on wire-1 pitch direction; your own logged outcomes will settle it.", src: CS + " (The 1st Wire)" });

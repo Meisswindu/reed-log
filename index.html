@@ -259,6 +259,15 @@ function diagnose(r, sym) {
     out.push({ t: "Eb4 indicator: unstable Eb4 (with resonance key) = rails in the middle third too thick vs the spine", b: "Work in VERY small increments, integrated with the overall rail taper. Result: more stable, less responsive, more resistant. (D4 is affected too.)", src: CRAY + " (Eb4/D4, p.19)" });
     out.push({ t: "Short Eb3/F4 cross-check: Eb3 sharp/unstable + F4 flat = too much cane in back-third channels", b: "Both readings together point at the back third rather than the rails.", src: CRAY + " (Short Eb3/F4, p.19)" });
   }
+  const PG = "Popkin & Glickman, 'Bassoon Reed Making' (crowing chapter)";
+  if (sym.crow) {
+    if (sym.crow === "tip") out.push({ t: "No pp crow → too much material at the tip", b: "Crow the reed blade-in-mouth to the top wire at piano pressure: three crows should emerge at increasing pressure. Absence at pianissimo level = too much cane at the tip.", src: PG + " (p.65)" });
+    if (sym.crow === "mid") out.push({ t: "No second crow → too much material in the mid-section", b: "The tip+mid crow emerges at slightly more pressure than the tip crow; its absence points at the mid-section.", src: PG + " (p.65)" });
+    if (sym.crow === "back") out.push({ t: "No full crow → too much material in the back", b: "The third crow (tip+mid+back, ~1 octave below the tip crow) needs slightly more pressure again. Absence = too much cane at the back.", src: PG + " (p.65)" });
+    out.push({ t: "Crow pitch targets (Cooper, via P&G): tip crow D–F above middle C; full crow ~1 octave lower, again D–F", b: "Reeds that only crow at f/ff will only play in tune at f/ff — a low-dynamic crow means a playable dynamic range.", src: PG + " (Crow Tuning, p.68)" });
+    out.push({ t: "Reed/crook test: relaxed embouchure should give B♭ a semitone below middle C", b: "Each register's embouchure tightening should raise pitch by a semitone (C, C♯, D). Reed/crook range = minor 3rd; reed alone = P5 above crow pitch.", src: PG + " (Cooper test, p.68)" });
+  }
+  out.push({ t: "Multiphonics on E/F above bass clef at pp = reed is too stiff", b: "Quick objective test from the same chapter.", src: PG + " (Preliminary Reed Testing, p.67)" });
   // CYORMA combination verdicts (Craypo Part 3)
   const S = k => !!sym[k];
   const combo = [];
@@ -738,6 +747,9 @@ function render() {
   else if (view === "diag") {
     const r = reeds.find(x => x.reed_id === diagReed);
     const SYMPTOMS = [["stuffy","👶 Stuffy / heavy"],["flat","📉 Flat pitch"],["sharp","📈 Sharp pitch"],["unresp","🥱 Unresponsive"],["einstab","🎵 Unstable E"],["mushy","🫠 Mushy / no support"],["strong","💪 Strong"],["weak","🍂 Weak"],["freeblow","💨 Free blowing"]];
+    const CROW = sym.crow ? `<div style="margin-top:10px"><label>🐦 Crow test — which crow is missing?</label>
+      <div class="chips">${[["none","(none)"],["tip","no pp crow → tip"],["mid","no 2nd crow → mid"],["back","no full crow → back"]].map(([k,label]) => `<button class="chip ${sym.crow===k?"on":""}" onclick="diagSym.crow='${k}';render()">${label}</button>`).join("")}</div>
+      <div class="sub" style="font-size:11px;margin-top:4px">Blade in mouth to the top wire, blow at ~piano pressure. Three crows should emerge at increasing pressure (Popkin & Glickman).</div></div>` : "";
     const sugg = diagnose(r, diagSym);
     app.innerHTML = `
     <div class="card">
@@ -750,6 +762,8 @@ function render() {
       ${r ? `
       <label style="margin-top:12px">Symptoms (pick any)</label>
       <div class="chips">${SYMPTOMS.map(([k,label]) => `<button class="chip ${diagSym[k]?"on":""}" onclick="diagSym['${k}']=!diagSym['${k}'];render()">${label}</button>`).join("")}</div>
+      ${diagSym.crow ? CROW : ""}
+      <button class="chip" style="margin-top:6px" onclick="diagSym.crow=diagSym.crow?'':'tip';render()">🐦 Crow test…</button>
       <div class="sub" style="font-size:11px;margin-top:6px">Suggestions combine general reed-making practice with your own measurements. The cause is not always where it looks — record the outcome in the Log!</div>
       ${Object.values(diagSym).some(Boolean) ? `
         <div style="margin-top:14px">

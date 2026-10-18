@@ -74,7 +74,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v19</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v20</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -203,7 +203,7 @@ function profilePlot(r) {
   </div>`;
 }
 const FIELD_LABELS = { wire_1: "1. drāts", wire_2: "2. drāts", wire_3: "3. drāts", status: "statuss", reitings_tagad: "reitings", reitings_sakumā: "reitings sākumā", metode: "metode", tip_profiler_setting: "TP iestatījums" };
-let diagReed = null; let diagSym = {}; let zoneShow = false; let zoneSel = null;
+let diagReed = null; let diagSym = {}; let zoneShow = false; let zoneSel = null; let diagMode = "symptoms"; let crow = {};
 
 const ZONES = {
   tip: { name: "Tip", gives: "Freer response, easier tonguing; the most sensitive area — work in tiny strokes. Clipping raises pitch; too-thin tip with a wide aperture = flat.", src: "Craypo (Tip Bevel, p.26) + Popkin & McKaig + Hardy/Yoder (5:00)" },
@@ -249,6 +249,29 @@ function reedMapSVG(hi, interactive, w) {
 }
 function diffAt(r, p) { const row = (r.m || []).find(x => normPoint(x.point) === normPoint(p)); if (!row || !row.left || !row.right) return null; return Math.abs(Number(row.left) - Number(row.right)); }
 function valAt(r, p) { const row = (r.m || []).find(x => normPoint(x.point) === normPoint(p)); return row ? (Number(row.left) || 0) : null; }
+function crowDiagnose(c) {
+  const out = [];
+  const PGc = "Popkin & Glickman, 'Bassoon Reed Making'";
+  const HYc = "Hardy & Yoder, 'Adjusting bassoon reeds' (video, 2015)";
+  const ABc = "Andrew Burn, 'Top Tips for Tip-Profilers' (video)";
+  const DRLc = "Double Reed Ltd adjustment guide";
+  if (c.missing === "tip") out.push({ t: "No pp crow → too much material at the TIP", z: "tip", b: "Blade in mouth to the top wire, three crows should emerge at increasing pressure (pp → a bit more → a bit more). Absence at pianissimo = too much cane at the tip. Light first step: 2000-grit tip sanding before any knife.", src: PGc + " (p.65)" });
+  if (c.missing === "mid") out.push({ t: "No second crow → too much material in the MID-section", z: "heart,channels", b: "The tip+mid crow emerges at slightly more pressure than the tip crow; its absence points at the mid-section (heart / channels).", src: PGc + " (p.65)" });
+  if (c.missing === "back") out.push({ t: "No full crow → too much material in the BACK", z: "back", b: "The third crow (tip+mid+back, ~1 octave below the tip crow) needs slightly more pressure again. Absence = too much cane at the back. Check for a 'wall of fibers' — an abrupt back-half thickness step kills the vibrations that form the full crow.", src: PGc + " (p.65); Hardy & Yoder (10:00–12:42)" });
+  if (c.dyn) out.push({ t: "Crow only at f/ff → the reed will only play in tune at f/ff", z: "tip", b: "A reed that crows only at high air pressure has a narrow dynamic range: crow at low dynamics = playable dynamic range. The crow should start at pp.", src: PGc + " (Crow Tuning, p.68)" });
+  if (c.pitch === "flat") out.push({ t: "Tip crow below D (flat crow) → clip the tip ~1mm and rebalance", z: "tip", b: "Target: tip crow between D and F above middle C. Flat crow causes per Popkin: wide throat (→ narrower shaper/more bevel), long blade or tube (→ −1mm), top wire loose (→ tighten slightly).", src: PGc + " (tuning table, p.68–70)" });
+  if (c.pitch === "sharp") out.push({ t: "Tip crow above F (sharp crow)", z: "tube", b: "Sharp crow causes per Popkin: undeveloped crow (→ scrape to establish the triple crow — most common!), narrow throat (→ wider shaper), short blade or tube (→ +1mm), top wire too tight (→ loosen slightly).", src: PGc + " (tuning table, p.68–70)" });
+  if (c.char === "honk") out.push({ t: "Honk crow → warning sign; check wire tension first", z: "tube", b: "A honk when blowing hard over the wires worries Hardy before he even tries the reed. DRL: loose wires → low-pitched, distorted crow; over-tight → choked, higher-pitched. Re-tension the wires (reversible) before scraping.", src: HYc + " (4:47); " + DRLc + " (wire tightness)" });
+  if (c.char === "peep") out.push({ t: "Only a single high peep → the tip EDGES aren't vibrating", z: "wings", b: "The crow's lower pitches come from the tip edges/wings — narrow the reed and only the peep remains. Peep-only = the edges aren't speaking: check whether they're too thick vs the center, or the reed too narrow. (Eubanks' alternative: a single F–G crow is his accepted standard — judge by how the reed plays, not the crow alone.)", src: HYc + " (21:01–21:25); Eubanks (crow standard)" });
+  if (c.char === "norattle") out.push({ t: "No rattle / muffled crow → the reed lacks a rich palette of overtones", z: "back,windows", b: "The rattle (multiple lower overtones) is what makes a lively sound on the bassoon; a single-pitch crow = muffled. Look for the back-half 'wall of fibers' or a windows-area bend that kills vibrations.", src: HYc + " (8:56–9:40)" });
+  if (c.char === "gate") out.push({ t: "Crow 'gate' / high level comes first → too big a center-to-side difference", z: "channels", b: "All three levels should start AT ONCE with minimum air. If you must blow through a resistance gate, or the HIGH level crows first (then mid, then low): thin the CHANNELS (between spine and rails), expanding toward the tip, working only behind the profiler-cut zone.", src: ABc + " (9:41–14:48)" });
+  if (out.length) {
+    out.push({ t: "Reference: crow pitch targets (Cooper, via P&G)", b: "Tip crow: single pitch D–F above middle C. Second crow: ~½ tone lower, complex. Full crow: ~1 octave down, again D–F. Cooper's reed/crook test: relaxed embouchure → B♭ a semitone below middle C; each register's tightening raises a semitone.", src: PGc + " (Crow Tuning, p.68)" });
+    out.push({ t: "End-of-life indicator: the crow loses freedom", b: "When cane stops absorbing water and the crow loses its freedom, the reed is done — no amount of scraping revives dead cane elasticity. Record it and retire the reed.", src: PGc + " (playing-in chapter)" });
+  }
+  return out;
+}
+
 function diagnose(r, sym) {
   if (!r) return [];
   const out = [];
@@ -899,14 +922,28 @@ function render() {
   else if (view === "diag") {
     const r = reeds.find(x => x.reed_id === diagReed);
     const SYMPTOMS = [["stuffy","👶 Stuffy / heavy"],["flat","📉 Flat pitch"],["sharp","📈 Sharp pitch"],["unresp","🥱 Unresponsive"],["einstab","🎵 Unstable E"],["mushy","🫠 Mushy / no support"],["strong","💪 Strong"],["weak","🍂 Weak"],["freeblow","💨 Free blowing"]];
-    const CROW = diagSym.crow ? `<div style="margin-top:10px"><label>🐦 Crow test — which crow is missing?</label>
-      <div class="chips">${[["none","(none)"],["tip","no pp crow → tip"],["mid","no 2nd crow → mid"],["back","no full crow → back"]].map(([k,label]) => `<button class="chip ${diagSym.crow===k?"on":""}" onclick="diagSym.crow='${k}';render()">${label}</button>`).join("")}</div>
-      <div class="sub" style="font-size:11px;margin-top:4px">Blade in mouth to the top wire, blow at ~piano pressure. Three crows should emerge at increasing pressure (Popkin & Glickman).</div></div>` : "";
-    const sugg = diagnose(r, diagSym);
+    const CROWPAGE = `
+      <div class="chips" style="margin-top:8px">
+        <button class="chip ${diagMode==="symptoms"?"on":""}" onclick="diagMode='symptoms';render()">🩺 Symptoms</button>
+        <button class="chip ${diagMode==="crow"?"on":""}" onclick="diagMode='crow';render()">🐦 Crow test</button>
+      </div>`;
+    const sugg = diagMode === "crow" ? crowDiagnose(crow) : diagnose(r, diagSym);
+    const hasInput = diagMode === "crow" ? Object.values(crow).some(Boolean) : Object.values(diagSym).some(Boolean);
     app.innerHTML = `
     <div class="card">
       <b style="font-size:14px">🩺 Reed diagnosis</b>
-      <label style="margin-top:10px">Pick a reed</label>
+      ${CROWPAGE}
+      ${diagMode === "crow" ? `
+      <div class="sub" style="font-size:11px;margin-top:8px">Crow = a diagnostic exam, not a symptom. Blade in mouth up to the TOP wire, loose embouchure, ~piano pressure. Three crows should emerge as pressure increases: pp (tip) → a bit more (tip+mid) → a bit more (full, ~1 octave down). Record what you observe.</div>
+      <label style="margin-top:10px">Which crow is missing?</label>
+      <div class="chips">${[["tip","no pp crow"],["mid","no 2nd crow"],["back","no full crow"]].map(([k,label]) => `<button class="chip ${crow.missing===k?"on":""}" onclick="crow.missing=crow.missing==='${k}'?null:'${k}';render()">${label}</button>`).join("")}</div>
+      <label style="margin-top:10px">Tip crow pitch (target: D–F above middle C)</label>
+      <div class="chips">${[["flat","below D / flat"],["sharp","above F / sharp"]].map(([k,label]) => `<button class="chip ${crow.pitch===k?"on":""}" onclick="crow.pitch=crow.pitch==='${k}'?null:'${k}';render()">${label}</button>`).join("")}</div>
+      <label style="margin-top:10px">Crow character</label>
+      <div class="chips">${[["honk","honk 🪿"],["peep","single peep only"],["norattle","no rattle / muffled"],["gate","gate / high-first"]].map(([k,label]) => `<button class="chip ${crow.char===k?"on":""}" onclick="crow.char=crow.char==='${k}'?null:'${k}';render()">${label}</button>`).join("")}</div>
+      <div class="chips" style="margin-top:10px"><button class="chip ${crow.dyn?"on":""}" onclick="crow.dyn=!crow.dyn;render()">🔊 crows only at f/ff</button></div>
+      ` : `
+      <label style="margin-top:12px">Pick a reed</label>
       <select onchange="diagReed=this.value;render()" style="height:36px;width:100%">
         <option value="">— choose —</option>
         ${sortedForLibrary().map(x => `<option value="${esc(x.reed_id)}" ${x.reed_id===diagReed?"selected":""}>${esc(x.reed_id)} (${esc(x.status)})</option>`).join("")}
@@ -914,17 +951,16 @@ function render() {
       ${r ? `
       <label style="margin-top:12px">Symptoms (pick any)</label>
       <div class="chips">${SYMPTOMS.map(([k,label]) => `<button class="chip ${diagSym[k]?"on":""}" onclick="diagSym['${k}']=!diagSym['${k}'];render()">${label}</button>`).join("")}</div>
-      ${diagSym.crow ? CROW : ""}
-      <button class="chip" style="margin-top:6px" onclick="diagSym.crow=diagSym.crow?'':'tip';render()">🐦 Crow test…</button>
       <button class="chip" style="margin-top:6px" onclick="zoneShow=!zoneShow;render()">🗺️ Reed map…</button>
       ${zoneShow ? `<div class="card" style="margin-top:10px;background:#fffbeb;border-color:#fcd34d"><b style="font-size:12px">🗺️ Reed zones — tap to explore</b>${reedMapSVG(null, true, 230)}</div>` : ""}
       <div class="sub" style="font-size:11px;margin-top:6px">Suggestions combine general reed-making practice with your own measurements. The cause is not always where it looks — record the outcome in the Log!</div>
-      ${Object.values(diagSym).some(Boolean) ? `
-        <div style="margin-top:14px">
-        ${sugg.length ? sugg.map(s => `<div class="entry" style="margin:8px 0"><div class="txt"><b>${esc(s.t)}</b>${s.b ? `<div class="sub" style="margin-top:4px">${esc(s.b)}</div>` : ""}${s.src ? `<div class="sub" style="margin-top:4px;font-size:10px;font-style:italic;color:#a8a29e">📚 ${esc(s.src)}</div>` : ""}${s.z ? `<div style="margin-top:6px">${reedMapSVG(s.z.split(","), false, 110)}</div>` : ""}</div></div>`).join("") : "<p class='txt'>Pick symptoms to see suggestions.</p>"}
-        </div>` : ""}
-      ${r.m && r.m.length >= 2 ? `<div style="margin-top:10px">${profilePlot(r)}</div>` : ""}
       ` : "<p class='txt' style='margin-top:10px'>Pick a reed from the library.</p>"}
+      `}
+      ${hasInput ? `
+        <div style="margin-top:14px">
+        ${sugg.length ? sugg.map(s => `<div class="entry" style="margin:8px 0"><div class="txt"><b>${esc(s.t)}</b>${s.b ? `<div class="sub" style="margin-top:4px">${esc(s.b)}</div>` : ""}${s.src ? `<div class="sub" style="margin-top:4px;font-size:10px;font-style:italic;color:#a8a29e">📚 ${esc(s.src)}</div>` : ""}${s.z ? `<div style="margin-top:6px">${reedMapSVG(s.z.split(","), false, 110)}</div>` : ""}</div></div>`).join("") : "<p class='txt'>Nothing matches that combination yet.</p>"}
+        </div>` : ""}
+      ${diagMode === "symptoms" && r && r.m && r.m.length >= 2 ? `<div style="margin-top:10px">${profilePlot(r)}</div>` : ""}
     </div>`;
   }
   else if (view === "settings") {

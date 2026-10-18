@@ -74,7 +74,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v17</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v18</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -288,6 +288,15 @@ function diagnose(r, sym) {
   }
   out.push({ t: "Crow should have a 'rattle' — a rich palette of overtones, not a single honk", b: "Test with reed in mouth to the first wire, loose embouchure, not forcing. No rattle → muffled on the bassoon; a honk when blowing hard over the wires = warning sign.", src: HY + " (3:14–4:53)" });
   out.push({ t: "Reed care: rinse after playing, blow through the butt end, toothbrush the blades — and never keep the reed case shut except for transport", b: "A dirty reed stops vibrating — clean it before scraping anything. Reed cases (even with holes) trap moisture; leave reeds out or the case open.", src: HY + " (Routines, 15:22–16:23)" });
+  const AB = "Andrew Burn, 'Top Tips for Tip-Profilers' (video)";
+  if (sym.unresp || sym.mushy) {
+    out.push({ t: "Crow 'gate' test: all three levels (low/mid/high) should start AT ONCE with minimum air", b: "If you must blow through a resistance 'gate' before everything comes, or the HIGH level crows first (then mid, then low), the center-to-side difference is too big → file the CHANNELS (between spine and rails), expanding toward the tip. Complements Hardy/Yoder's 'rattle'.", src: AB + " (9:41–14:48)" });
+    out.push({ t: "Smooth the tip-profiler's marks with a fine file — finish only BEHIND the already-cut zone", b: "Every profiler reed needs a light pass with the finest file, no hand pressure, smoothing the area the profiler blade crossed (not the thinnest Herzberg ledge). Effect: barely changes the opening but the crow responds immediately.", src: AB + " (1:08–6:15)" });
+  }
+  if (sym.einstab || sym.stuffy) {
+    out.push({ t: "Tip open in the CENTER, sides collapse instantly → look for a step/bend in the windows (eyes) area", b: "The profiler can dent the windows zone, creating a bend in the cane. Blend by taking a little cane from JUST BEFORE the bend → the tip closes evenly side-to-center and the crow starts immediately.", src: AB + " (7:41–13:15)" });
+  }
+  out.push({ t: "Longevity: a reed finished over 1–2 weeks lives longer than one finished the same night", b: "Tip-profile on day 1, do finishing work day 2+ — the reed changes overnight (first soak → dry → second soak). Fast finishing = short reed life. Log your finishing pace alongside reed age for the correlations.", src: AB + " (20:22–21:28)" });
   const SCH = "Schillinger (Reeds 'n Stuff guide, after Eubanks)";
   if (sym.einstab || r.e_nestabila === "jå" || r.e_nestabila === "jā") {
     out.push({ t: "Eubanks harmonic comparison (tenor/individual notes): alternate normal vs flageolet fingering", b: "Harmonic pitch TOO HIGH → scrape the corresponding spot in the CHANNEL. Harmonic pitch TOO LOW → scrape the corresponding spot on the RAILS. Note-per-note diagnostic that maps each unstable note to a physical reed location — works for E and any problem note.", src: SCH + " (Advanced Intonation)" });

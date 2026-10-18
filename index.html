@@ -74,7 +74,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v16</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v17</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -271,6 +271,23 @@ function diagnose(r, sym) {
     out.push({ t: "Bassoon-side check: 4 of 5 bassoons leak enough to affect tuning — and pad heights on the bass bore are usually too high", b: "Before blaming the reed: whisper key closure, pancake key, Low C/D pad coupling, dirty tone holes (B, C, C#), bocal vent hole (0.8–0.9mm, often dirty → croaking). Reed debris in the lap ends up on pads.", src: EB + " (Curses / Tests 3–7)" });
     out.push({ t: "Bocal check: bocals tune D, E, F in all three octaves — a great bocal centers all nine", b: "Low D1 sharp / D3 flat is common. The exit can be ovalized with needle-nose pliers: 12/6 = freer, more resonant; 9/3 = more middle resistance, pitch lifted.", src: EB + " (Bocals)" });
   }
+  const HY = "Hardy & Yoder, 'Adjusting bassoon reeds' (video, 2015)";
+  if (sym.stuffy || sym.unresp) {
+    out.push({ t: "2000-grit tip sanding: ~1mm across the tip, a few strokes at ~30° on a flat surface", b: "Lays down the tip fibers → smoother response, easier tonguing, easier to play. Their 'first stop' for a slightly resistant reed — try this before any knife work.", src: HY + " (Sanding, 5:00)" });
+    out.push({ t: "Blow it in a bit before scraping more", b: "If you scrape straight away you risk going too far — after the reed settles you may find you'd already removed enough.", src: HY + " (6:36)" });
+  }
+  if (sym.stuffy) {
+    out.push({ t: "Look for a 'wall of fibers' / bump in the back half — smooth the transition, filing from BEHIND the line", b: "Vibrations from the tip hit an abrupt thickness step and die out. Most excess wood is behind the bump: file wet (plaque + mandrel) coming from behind the line, then fine sandpaper + toothbrush. After working with a plaque: remove it, close the tip with fingers and suck air to restore the reed's natural shape.", src: HY + " (Smoothing the bump, 10:00–12:42)" });
+  }
+  if (sym.strong || sym.einstab) {
+    out.push({ t: "Wild/uncontrolled reed: thin the very TIP EDGES (wings) — thinner edges vibrate LESS", b: "Counterintuitive but confirmed on camera: the crow's lower pitches come from the tip edges; if they flap out of control, thinning them lets the embouchure close them more easily → calmer. Also tighten wires first; Hardy rounds wire 2 to add resistance. Freehand in the front quarter, no mandrel/plaque.", src: HY + " (Problems / What to do, 19:22 & 21:35–23:04)" });
+  }
+  if (sym.flat || sym.einstab) {
+    out.push({ t: "E & Eb test: play E first — a flat E means too long, too soft somewhere, edges-vs-middle wrong, or loose wires", b: "Then forked Eb: wild? Does adding Bb + right-hand 2nd finger help? Eb fix = small knife 'dot' in the triangles just off the edges of the half-moon area (spot may sit slightly further back depending on the reed's trim).", src: HY + " (FAQ, 23:36–25:40)" });
+    out.push({ t: "Shallow/sharp low D → trim the CHANNELS (just behind the Eb spot)", b: "Opening the channels lowers the pitch and opens up the low register. Use the knife as a plane taking off a layer — don't rock/dig like oboists.", src: HY + " (25:53–27:52)" });
+  }
+  out.push({ t: "Crow should have a 'rattle' — a rich palette of overtones, not a single honk", b: "Test with reed in mouth to the first wire, loose embouchure, not forcing. No rattle → muffled on the bassoon; a honk when blowing hard over the wires = warning sign.", src: HY + " (3:14–4:53)" });
+  out.push({ t: "Reed care: rinse after playing, blow through the butt end, toothbrush the blades — and never keep the reed case shut except for transport", b: "A dirty reed stops vibrating — clean it before scraping anything. Reed cases (even with holes) trap moisture; leave reeds out or the case open.", src: HY + " (Routines, 15:22–16:23)" });
   const SCH = "Schillinger (Reeds 'n Stuff guide, after Eubanks)";
   if (sym.einstab || r.e_nestabila === "jå" || r.e_nestabila === "jā") {
     out.push({ t: "Eubanks harmonic comparison (tenor/individual notes): alternate normal vs flageolet fingering", b: "Harmonic pitch TOO HIGH → scrape the corresponding spot in the CHANNEL. Harmonic pitch TOO LOW → scrape the corresponding spot on the RAILS. Note-per-note diagnostic that maps each unstable note to a physical reed location — works for E and any problem note.", src: SCH + " (Advanced Intonation)" });

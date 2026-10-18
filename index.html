@@ -74,7 +74,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v18</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v19</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -203,7 +203,50 @@ function profilePlot(r) {
   </div>`;
 }
 const FIELD_LABELS = { wire_1: "1. drāts", wire_2: "2. drāts", wire_3: "3. drāts", status: "statuss", reitings_tagad: "reitings", reitings_sakumā: "reitings sākumā", metode: "metode", tip_profiler_setting: "TP iestatījums" };
-let diagReed = null; let diagSym = {};
+let diagReed = null; let diagSym = {}; let zoneShow = false; let zoneSel = null;
+
+const ZONES = {
+  tip: { name: "Tip", gives: "Freer response, easier tonguing; the most sensitive area — work in tiny strokes. Clipping raises pitch; too-thin tip with a wide aperture = flat.", src: "Craypo (Tip Bevel, p.26) + Popkin & McKaig + Hardy/Yoder (5:00)" },
+  wings: { name: "Wings (tip edges)", gives: "The crow's lower pitches live here. Counterintuitive: THINNER edges close easier under embouchure and vibrate LESS — calms wild, quacky reeds.", src: "Hardy/Yoder (21:35–23:04); Eb fix: knife 'dot' in the triangles off the half-moon edges (23:36–25:40)" },
+  channels: { name: "Channels", gives: "Note-by-note pitch & focus: SHARP harmonic → scrape that note's channel; low-D fix lives here; channels should expand toward the tip. Opening them lowers pitch & opens the low register.", src: "Eubanks (Level 2) + Schillinger + Hardy/Yoder (25:53) + Burn (15:02)" },
+  rails: { name: "Rails", gives: "Stability & intonation: FLAT harmonic → scrape rails. Keep an even collar→tip taper — rails too thin vs spine = small, stuffy sound that collapses under correct embouchure.", src: "Craypo (Rails, p.23; Eb4 p.19) + Eubanks/Schillinger" },
+  spine: { name: "Spine", gives: "The reed's backbone — never dig into it. Support for tenor/E stability. A cut into the spine/heart area is irreparable.", src: "Burn (24:06 — profiler saddle) + general practice" },
+  heart: { name: "Heart", gives: "Center of vibration. Too thick = stuffy & resistant; gentle thinning frees response and drops pitch slightly. Thinned too far = mushy.", src: "General practice + Craypo (mountain concept)" },
+  windows: { name: "Windows (eyes)", gives: "A bend/step here (often from profiling) = tip open in the CENTER, sides collapsing instantly. Blend by taking a little cane from just BEFORE the bend.", src: "Burn (7:41–13:15)" },
+  back: { name: "Back / shoulder (4–12mm)", gives: "Where resistance lives: thinning = freer. But keep the 'mountain' at 16/L — without it the reed goes mushy and flat. Smooth abrupt 'walls of fibers' filing from BEHIND the line.", src: "Popkin & McKaig + Craypo + Hardy/Yoder (10:00–12:42)" },
+  tube: { name: "Tube & wires", gives: "Aperture, resistance and pitch. Adjust wires FIRST — reversible — before scraping anywhere. Round wire 1 = sharper (Eubanks dissents: lower); round wire 2 closes the tip.", src: "Kamins/Craypo two-wire table; wire-1 conflict: Popkin/Kamins/DRL vs Eubanks" }
+};
+
+function reedMapSVG(hi, interactive, w) {
+  const on = k => (hi || []).includes(k);
+  const zone = (k, shapes, label) => {
+    const h = on(k);
+    const st = h ? `fill:#dc2626;fill-opacity:${interactive ? 0.30 : 0.45};stroke:#b91c1c;stroke-width:2` : `fill:#92765a;fill-opacity:0.30;stroke:#a8a29e;stroke-width:1;stroke-dasharray:4 3`;
+    const body = shapes.map(s => s.replace("##ST##", st)).join("");
+    const txt = interactive
+      ? (label ? label.map(([x, y, t]) => `<text x="${x}" y="${y}" text-anchor="middle" font-size="8.5" font-weight="bold" fill="#44403c" pointer-events="none">${t}</text>`).join("") : "")
+      : "";
+    return `<g ${interactive ? `style="cursor:pointer" onclick="zoneSel='${k}';render()"` : ""}>${body}${txt}</g>`;
+  };
+  const silhouette = `
+    <path d="M45,65 L155,65 L152,235 L48,235 Z" fill="#e7d8ba" stroke="#a8a29e" stroke-width="1.5"/>
+    <path d="M85,235 L115,235 L110,282 L90,282 Z" fill="#d9c7a3" stroke="#a8a29e" stroke-width="1.5"/>
+    <line x1="87" y1="246" x2="113" y2="246" stroke="#78716c" stroke-width="1.5"/>
+    <line x1="88" y1="259" x2="112" y2="259" stroke="#78716c" stroke-width="1.5"/>`;
+  const svg = `<svg viewBox="0 0 200 300" width="${w}" style="max-width:100%;display:block;margin:0 auto">
+    ${silhouette}
+    ${zone("back", [`<polygon points="48,215 152,215 152,235 48,235" style="##ST##"/>`], [[100, 229, "back"]])}
+    ${zone("rails", [`<polygon points="45,95 62,95 60,235 48,235" style="##ST##"/>`, `<polygon points="155,95 138,95 140,235 152,235" style="##ST##"/>`], [[54, 162, "rail"], [146, 162, "rail"]])}
+    ${zone("channels", [`<polygon points="62,95 88,95 88,235 60,235" style="##ST##"/>`, `<polygon points="112,95 138,95 140,235 112,235" style="##ST##"/>`], [[75, 130, "channel"], [125, 130, "channel"]])}
+    ${zone("spine", [`<polygon points="88,95 112,95 112,235 88,235" style="##ST##"/>`], [[100, 210, "spine"]])}
+    ${zone("windows", [`<ellipse cx="68" cy="196" rx="13" ry="16" style="##ST##"/>`, `<ellipse cx="132" cy="196" rx="13" ry="16" style="##ST##"/>`], [[68, 199, "eyes"], [132, 199, "eyes"]])}
+    ${zone("heart", [`<ellipse cx="100" cy="150" rx="26" ry="27" style="##ST##"/>`], [[100, 153, "heart"]])}
+    ${zone("tip", [`<polygon points="45,65 155,65 152,95 48,95" style="##ST##"/>`], [[100, 84, "tip"]])}
+    ${zone("wings", [`<polygon points="45,65 82,65 76,100 45,97" style="##ST##"/>`, `<polygon points="155,65 118,65 124,100 155,97" style="##ST##"/>`], [[60, 90, "wing"], [140, 90, "wing"]])}
+    ${zone("tube", [`<polygon points="85,237 115,237 110,281 90,281" style="##ST##"/>`], [[100, 262, "tube"]])}
+  </svg>`;
+  return interactive ? `<div style="margin-top:8px">${svg}${zoneSel && ZONES[zoneSel] ? `<div class="entry" style="margin-top:8px"><div class="txt"><b>${esc(ZONES[zoneSel].name)}</b><div class="sub" style="margin-top:4px">${esc(ZONES[zoneSel].gives)}</div><div class="sub" style="margin-top:4px;font-size:10px;font-style:italic;color:#a8a29e">📚 ${esc(ZONES[zoneSel].src)}</div></div></div>` : `<div class="sub" style="font-size:11px;margin-top:6px;text-align:center">Tap a zone to see what working there gives.</div>`}</div>` : svg;
+}
 function diffAt(r, p) { const row = (r.m || []).find(x => normPoint(x.point) === normPoint(p)); if (!row || !row.left || !row.right) return null; return Math.abs(Number(row.left) - Number(row.right)); }
 function valAt(r, p) { const row = (r.m || []).find(x => normPoint(x.point) === normPoint(p)); return row ? (Number(row.left) || 0) : null; }
 function diagnose(r, sym) {
@@ -213,17 +256,17 @@ function diagnose(r, sym) {
   const worst = ["T","2","4","8","12","16","20","L"].map(bal).filter(Boolean).sort((a,b) => b.d - a.d)[0];
   const hasData = (r.m || []).length >= 3;
   if (sym.stuffy) {
-    out.push({ t: "Check overall thickness at the shoulder (4–8mm)", b: hasData ? `Your ${r.reed_id}: 4mm = ${valAt(r,"4") ?? "?"}, 8mm = ${valAt(r,"8") ?? "?"}. If the resistance is across the whole octave, there is usually too much wood there.` : "", src: "General practice — consistent across most reed-making literature" });
+    out.push({ t: "Check overall thickness at the shoulder (4–8mm)", z: "back", b: hasData ? `Your ${r.reed_id}: 4mm = ${valAt(r,"4") ?? "?"}, 8mm = ${valAt(r,"8") ?? "?"}. If the resistance is across the whole octave, there is usually too much wood there.` : "", src: "General practice — consistent across most reed-making literature" });
     out.push({ t: "Open the aperture: gently squeeze wire 1 flatter", b: "Wire 1 controls the aperture — a small opening often makes the response quicker.", src: "Weait, 'Bassoon Reed Making' + Popkin & McKaig — both describe wire 1 as the primary aperture control" });
-    out.push({ t: "Clip the tip a little (in ~1mm steps)", b: "A shorter reed responds easier but also raises pitch — go gradually.", src: "General practice (Popkin & McKaig: clipping raises pitch & improves response)" });
+    out.push({ t: "Clip the tip a little (in ~1mm steps)", z: "tip", b: "A shorter reed responds easier but also raises pitch — go gradually.", src: "General practice (Popkin & McKaig: clipping raises pitch & improves response)" });
   }
   if (sym.flat) {
-    out.push({ t: "Clip the tip", b: "The classic fix for a flat reed — start with ~0.5–1mm and re-check.", src: "Popkin & McKaig, 'Bassoon Reed Making' — the standard first remedy for flat pitch" });
+    out.push({ t: "Clip the tip", z: "tip", b: "The classic fix for a flat reed — start with ~0.5–1mm and re-check.", src: "Popkin & McKaig, 'Bassoon Reed Making' — the standard first remedy for flat pitch" });
     out.push({ t: "Check wire 1 position/tension", b: "Pulling the first wire toward the collar raises the pitch.", src: "Weait, 'Bassoon Reed Making' — wire adjustment chapter" });
     if (hasData && valAt(r,"T") !== null) out.push({ t: "Is the tip too thin?", b: `Your T value: ${valAt(r,"T")}. A too-thin tip with a wide aperture = flat pitch.`, src: "Reasoned from general practice — not tied to a specific source" });
   }
   if (sym.sharp) {
-    out.push({ t: "Thin the shoulder/back zone (4–8mm) rather than the very tip", b: "High pitch often comes from an over-stiff reed — taking a little wood from the middle usually lowers it.", src: "General practice — scrape order advice appears in most method books" });
+    out.push({ t: "Thin the shoulder/back zone (4–8mm) rather than the very tip", z: "back", b: "High pitch often comes from an over-stiff reed — taking a little wood from the middle usually lowers it.", src: "General practice — scrape order advice appears in most method books" });
     out.push({ t: "Open the aperture (squeeze wire 1)", b: "A wider aperture usually drops the pitch and gives a bigger tone.", src: "Weait, 'Bassoon Reed Making' + general practice" });
   }
   if (sym.unresp) {
@@ -236,14 +279,14 @@ function diagnose(r, sym) {
     out.push({ t: "Play the reed in for several days before drawing conclusions", b: "Freshly scraped reeds almost always have an unsettled E at first — give it time and check again.", src: "General practice — widely shared observation among reed makers" });
   }
   if (sym.mushy) {
-    out.push({ t: "Mushy = not enough support: usually too thin near the collar, or the aperture is too wide", b: hasData ? `Check the 16mm/L zone: 16mm = ${valAt(r,"16") ?? "?"}, L = ${valAt(r,"L") ?? "?"}. If there is no 'mountain' left there, the reed loses its spring.` : "", src: "General practice + your own profile plot (the 'mountain' concept)" });
+    out.push({ t: "Mushy = not enough support: usually too thin near the collar, or the aperture is too wide", z: "back", b: hasData ? `Check the 16mm/L zone: 16mm = ${valAt(r,"16") ?? "?"}, L = ${valAt(r,"L") ?? "?"}. If there is no 'mountain' left there, the reed loses its spring.` : "", src: "General practice + your own profile plot (the 'mountain' concept)" });
     out.push({ t: "A tighter 2nd wire can restore support", b: "A reversible step before scraping wood — start with the wire.", src: "General practice — wires before wood is the standard order of operations" });
     out.push({ t: "Rails too thin too far back = flat and stuffy; collapsed channels at the tip = likely bad cane", b: "Craypo: collapsed channels are generally a symptom of bad cane, probably not salvageable — don't over-invest in such a reed.", src: "Craypo, 'The Banana of Life' Part 2 (Rails p.23, Tip Opening p.25)" });
   }
   const CRAY = "Craypo, 'The Banana of Life' Part 2 — Indicator Notes / Visual Cues";
   if (sym.stuffy) {
-    out.push({ t: "Check the tip bevel: 45° angle in the front 0.5mm", b: "Craypo calls the tip bevel 'the most important place on the reed' — too shallow a bevel = stuffy, sluggish response and a weak, collapsing tip. Knife straight into the plaque, no scooping.", src: CRAY + " (Tip Bevel, p.26)" });
-    out.push({ t: "Rails too weak vs spine = small, stuffy, collapses under correct embouchure", b: "Rails must taper evenly collar→tip. Test with your default support structure — not one adapted to a bad reed.", src: CRAY + " (Rails, p.23)" });
+    out.push({ t: "Check the tip bevel: 45° angle in the front 0.5mm", z: "tip", b: "Craypo calls the tip bevel 'the most important place on the reed' — too shallow a bevel = stuffy, sluggish response and a weak, collapsing tip. Knife straight into the plaque, no scooping.", src: CRAY + " (Tip Bevel, p.26)" });
+    out.push({ t: "Rails too weak vs spine = small, stuffy, collapses under correct embouchure", z: "rails", b: "Rails must taper evenly collar→tip. Test with your default support structure — not one adapted to a bad reed.", src: CRAY + " (Rails, p.23)" });
   }
   if (sym.unresp) {
     out.push({ t: "B3 pinchy test: areas behind the tip too strong vs the very tip", b: "If B3 changes unmanageably fast under applied embouchure/air (Rachael Young test), refine the tapers just behind the tip. Result: more stable.", src: CRAY + " (B3 Pinchy Test, p.21)" });
@@ -256,12 +299,12 @@ function diagnose(r, sym) {
     out.push({ t: "F2 indicator: sharp mf attack on F2 = front third too heavy compared to the back", b: "Scrape the front third; result: weaker, flatter, more responsive, freer blowing. Combine with F#3, Bb3, A3 speaker key and F4 readings to locate the zone.", src: CRAY + " (F2, p.20)" });
   }
   if (sym.einstab || r.e_nestabila === "jā") {
-    out.push({ t: "Eb4 indicator: unstable Eb4 (with resonance key) = rails in the middle third too thick vs the spine", b: "Work in VERY small increments, integrated with the overall rail taper. Result: more stable, less responsive, more resistant. (D4 is affected too.)", src: CRAY + " (Eb4/D4, p.19)" });
+    out.push({ t: "Eb4 indicator: unstable Eb4 (with resonance key) = rails in the middle third too thick vs the spine", z: "rails", b: "Work in VERY small increments, integrated with the overall rail taper. Result: more stable, less responsive, more resistant. (D4 is affected too.)", src: CRAY + " (Eb4/D4, p.19)" });
     out.push({ t: "Short Eb3/F4 cross-check: Eb3 sharp/unstable + F4 flat = too much cane in back-third channels", b: "Both readings together point at the back third rather than the rails.", src: CRAY + " (Short Eb3/F4, p.19)" });
   }
   const EB = "Eubanks, Quick Guide to Bassoon Reed Tuning (Arundo Research)";
   if (sym.einstab || r.e_nestabila === "jā") {
-    out.push({ t: "Eubanks note-by-note tuning: harmonic SHARP → scrape that note's CHANNEL zone; harmonic FLAT → sand its RAIL zone", b: "Slur standard ↔ harmonic fingering on E with steady air. E is tuned in its channel/spine/rail zones like every other note — 40 years of mapped tuning zones. Standard C#/D tend flat; their harmonics sharp.", src: EB + " (Level 2, Tests 8–13)" });
+    out.push({ t: "Eubanks note-by-note tuning: harmonic SHARP → scrape that note's CHANNEL zone; harmonic FLAT → sand its RAIL zone", z: "channels,rails", b: "Slur standard ↔ harmonic fingering on E with steady air. E is tuned in its channel/spine/rail zones like every other note — 40 years of mapped tuning zones. Standard C#/D tend flat; their harmonics sharp.", src: EB + " (Level 2, Tests 8–13)" });
     out.push({ t: "Ear plug test: hold E in tune, plug right ear with finger", b: "If the pitch/tone shifts sharp-bright or flat-dull with the ear closed, the note is false in its overtones — what others hear isn't what you hear. Objective beyond the tuner.", src: EB + " (Ear Plug Tests)" });
   }
   if (sym.sharp || sym.flat) {
@@ -273,33 +316,33 @@ function diagnose(r, sym) {
   }
   const HY = "Hardy & Yoder, 'Adjusting bassoon reeds' (video, 2015)";
   if (sym.stuffy || sym.unresp) {
-    out.push({ t: "2000-grit tip sanding: ~1mm across the tip, a few strokes at ~30° on a flat surface", b: "Lays down the tip fibers → smoother response, easier tonguing, easier to play. Their 'first stop' for a slightly resistant reed — try this before any knife work.", src: HY + " (Sanding, 5:00)" });
+    out.push({ t: "2000-grit tip sanding: ~1mm across the tip, a few strokes at ~30° on a flat surface", z: "tip", b: "Lays down the tip fibers → smoother response, easier tonguing, easier to play. Their 'first stop' for a slightly resistant reed — try this before any knife work.", src: HY + " (Sanding, 5:00)" });
     out.push({ t: "Blow it in a bit before scraping more", b: "If you scrape straight away you risk going too far — after the reed settles you may find you'd already removed enough.", src: HY + " (6:36)" });
   }
   if (sym.stuffy) {
-    out.push({ t: "Look for a 'wall of fibers' / bump in the back half — smooth the transition, filing from BEHIND the line", b: "Vibrations from the tip hit an abrupt thickness step and die out. Most excess wood is behind the bump: file wet (plaque + mandrel) coming from behind the line, then fine sandpaper + toothbrush. After working with a plaque: remove it, close the tip with fingers and suck air to restore the reed's natural shape.", src: HY + " (Smoothing the bump, 10:00–12:42)" });
+    out.push({ t: "Look for a 'wall of fibers' / bump in the back half — smooth the transition, filing from BEHIND the line", z: "back", b: "Vibrations from the tip hit an abrupt thickness step and die out. Most excess wood is behind the bump: file wet (plaque + mandrel) coming from behind the line, then fine sandpaper + toothbrush. After working with a plaque: remove it, close the tip with fingers and suck air to restore the reed's natural shape.", src: HY + " (Smoothing the bump, 10:00–12:42)" });
   }
   if (sym.strong || sym.einstab) {
-    out.push({ t: "Wild/uncontrolled reed: thin the very TIP EDGES (wings) — thinner edges vibrate LESS", b: "Counterintuitive but confirmed on camera: the crow's lower pitches come from the tip edges; if they flap out of control, thinning them lets the embouchure close them more easily → calmer. Also tighten wires first; Hardy rounds wire 2 to add resistance. Freehand in the front quarter, no mandrel/plaque.", src: HY + " (Problems / What to do, 19:22 & 21:35–23:04)" });
+    out.push({ t: "Wild/uncontrolled reed: thin the very TIP EDGES (wings) — thinner edges vibrate LESS", z: "wings", b: "Counterintuitive but confirmed on camera: the crow's lower pitches come from the tip edges; if they flap out of control, thinning them lets the embouchure close them more easily → calmer. Also tighten wires first; Hardy rounds wire 2 to add resistance. Freehand in the front quarter, no mandrel/plaque.", src: HY + " (Problems / What to do, 19:22 & 21:35–23:04)" });
   }
   if (sym.flat || sym.einstab) {
-    out.push({ t: "E & Eb test: play E first — a flat E means too long, too soft somewhere, edges-vs-middle wrong, or loose wires", b: "Then forked Eb: wild? Does adding Bb + right-hand 2nd finger help? Eb fix = small knife 'dot' in the triangles just off the edges of the half-moon area (spot may sit slightly further back depending on the reed's trim).", src: HY + " (FAQ, 23:36–25:40)" });
-    out.push({ t: "Shallow/sharp low D → trim the CHANNELS (just behind the Eb spot)", b: "Opening the channels lowers the pitch and opens up the low register. Use the knife as a plane taking off a layer — don't rock/dig like oboists.", src: HY + " (25:53–27:52)" });
+    out.push({ t: "E & Eb test: play E first — a flat E means too long, too soft somewhere, edges-vs-middle wrong, or loose wires", z: "wings", b: "Then forked Eb: wild? Does adding Bb + right-hand 2nd finger help? Eb fix = small knife 'dot' in the triangles just off the edges of the half-moon area (spot may sit slightly further back depending on the reed's trim).", src: HY + " (FAQ, 23:36–25:40)" });
+    out.push({ t: "Shallow/sharp low D → trim the CHANNELS (just behind the Eb spot)", z: "channels", b: "Opening the channels lowers the pitch and opens up the low register. Use the knife as a plane taking off a layer — don't rock/dig like oboists.", src: HY + " (25:53–27:52)" });
   }
   out.push({ t: "Crow should have a 'rattle' — a rich palette of overtones, not a single honk", b: "Test with reed in mouth to the first wire, loose embouchure, not forcing. No rattle → muffled on the bassoon; a honk when blowing hard over the wires = warning sign.", src: HY + " (3:14–4:53)" });
   out.push({ t: "Reed care: rinse after playing, blow through the butt end, toothbrush the blades — and never keep the reed case shut except for transport", b: "A dirty reed stops vibrating — clean it before scraping anything. Reed cases (even with holes) trap moisture; leave reeds out or the case open.", src: HY + " (Routines, 15:22–16:23)" });
   const AB = "Andrew Burn, 'Top Tips for Tip-Profilers' (video)";
   if (sym.unresp || sym.mushy) {
-    out.push({ t: "Crow 'gate' test: all three levels (low/mid/high) should start AT ONCE with minimum air", b: "If you must blow through a resistance 'gate' before everything comes, or the HIGH level crows first (then mid, then low), the center-to-side difference is too big → file the CHANNELS (between spine and rails), expanding toward the tip. Complements Hardy/Yoder's 'rattle'.", src: AB + " (9:41–14:48)" });
-    out.push({ t: "Smooth the tip-profiler's marks with a fine file — finish only BEHIND the already-cut zone", b: "Every profiler reed needs a light pass with the finest file, no hand pressure, smoothing the area the profiler blade crossed (not the thinnest Herzberg ledge). Effect: barely changes the opening but the crow responds immediately.", src: AB + " (1:08–6:15)" });
+    out.push({ t: "Crow 'gate' test: all three levels (low/mid/high) should start AT ONCE with minimum air", z: "channels", b: "If you must blow through a resistance 'gate' before everything comes, or the HIGH level crows first (then mid, then low), the center-to-side difference is too big → file the CHANNELS (between spine and rails), expanding toward the tip. Complements Hardy/Yoder's 'rattle'.", src: AB + " (9:41–14:48)" });
+    out.push({ t: "Smooth the tip-profiler's marks with a fine file — finish only BEHIND the already-cut zone", z: "tip", b: "Every profiler reed needs a light pass with the finest file, no hand pressure, smoothing the area the profiler blade crossed (not the thinnest Herzberg ledge). Effect: barely changes the opening but the crow responds immediately.", src: AB + " (1:08–6:15)" });
   }
   if (sym.einstab || sym.stuffy) {
-    out.push({ t: "Tip open in the CENTER, sides collapse instantly → look for a step/bend in the windows (eyes) area", b: "The profiler can dent the windows zone, creating a bend in the cane. Blend by taking a little cane from JUST BEFORE the bend → the tip closes evenly side-to-center and the crow starts immediately.", src: AB + " (7:41–13:15)" });
+    out.push({ t: "Tip open in the CENTER, sides collapse instantly → look for a step/bend in the windows (eyes) area", z: "windows", b: "The profiler can dent the windows zone, creating a bend in the cane. Blend by taking a little cane from JUST BEFORE the bend → the tip closes evenly side-to-center and the crow starts immediately.", src: AB + " (7:41–13:15)" });
   }
   out.push({ t: "Longevity: a reed finished over 1–2 weeks lives longer than one finished the same night", b: "Tip-profile on day 1, do finishing work day 2+ — the reed changes overnight (first soak → dry → second soak). Fast finishing = short reed life. Log your finishing pace alongside reed age for the correlations.", src: AB + " (20:22–21:28)" });
   const SCH = "Schillinger (Reeds 'n Stuff guide, after Eubanks)";
   if (sym.einstab || r.e_nestabila === "jå" || r.e_nestabila === "jā") {
-    out.push({ t: "Eubanks harmonic comparison (tenor/individual notes): alternate normal vs flageolet fingering", b: "Harmonic pitch TOO HIGH → scrape the corresponding spot in the CHANNEL. Harmonic pitch TOO LOW → scrape the corresponding spot on the RAILS. Note-per-note diagnostic that maps each unstable note to a physical reed location — works for E and any problem note.", src: SCH + " (Advanced Intonation)" });
+    out.push({ t: "Eubanks harmonic comparison (tenor/individual notes): alternate normal vs flageolet fingering", z: "channels,rails", b: "Harmonic pitch TOO HIGH → scrape the corresponding spot in the CHANNEL. Harmonic pitch TOO LOW → scrape the corresponding spot on the RAILS. Note-per-note diagnostic that maps each unstable note to a physical reed location — works for E and any problem note.", src: SCH + " (Advanced Intonation)" });
     out.push({ t: "Ab–B trill test (green tone hole): unstable trill sound → scrape the 'ears' of the reed", b: "Schillinger's low/middle register centering test from the same system.", src: SCH });
   }
   if (sym.sharp) {
@@ -873,10 +916,12 @@ function render() {
       <div class="chips">${SYMPTOMS.map(([k,label]) => `<button class="chip ${diagSym[k]?"on":""}" onclick="diagSym['${k}']=!diagSym['${k}'];render()">${label}</button>`).join("")}</div>
       ${diagSym.crow ? CROW : ""}
       <button class="chip" style="margin-top:6px" onclick="diagSym.crow=diagSym.crow?'':'tip';render()">🐦 Crow test…</button>
+      <button class="chip" style="margin-top:6px" onclick="zoneShow=!zoneShow;render()">🗺️ Reed map…</button>
+      ${zoneShow ? `<div class="card" style="margin-top:10px;background:#fffbeb;border-color:#fcd34d"><b style="font-size:12px">🗺️ Reed zones — tap to explore</b>${reedMapSVG(null, true, 230)}</div>` : ""}
       <div class="sub" style="font-size:11px;margin-top:6px">Suggestions combine general reed-making practice with your own measurements. The cause is not always where it looks — record the outcome in the Log!</div>
       ${Object.values(diagSym).some(Boolean) ? `
         <div style="margin-top:14px">
-        ${sugg.length ? sugg.map(s => `<div class="entry" style="margin:8px 0"><div class="txt"><b>${esc(s.t)}</b>${s.b ? `<div class="sub" style="margin-top:4px">${esc(s.b)}</div>` : ""}${s.src ? `<div class="sub" style="margin-top:4px;font-size:10px;font-style:italic;color:#a8a29e">📚 ${esc(s.src)}</div>` : ""}</div></div>`).join("") : "<p class='txt'>Pick symptoms to see suggestions.</p>"}
+        ${sugg.length ? sugg.map(s => `<div class="entry" style="margin:8px 0"><div class="txt"><b>${esc(s.t)}</b>${s.b ? `<div class="sub" style="margin-top:4px">${esc(s.b)}</div>` : ""}${s.src ? `<div class="sub" style="margin-top:4px;font-size:10px;font-style:italic;color:#a8a29e">📚 ${esc(s.src)}</div>` : ""}${s.z ? `<div style="margin-top:6px">${reedMapSVG(s.z.split(","), false, 110)}</div>` : ""}</div></div>`).join("") : "<p class='txt'>Pick symptoms to see suggestions.</p>"}
         </div>` : ""}
       ${r.m && r.m.length >= 2 ? `<div style="margin-top:10px">${profilePlot(r)}</div>` : ""}
       ` : "<p class='txt' style='margin-top:10px'>Pick a reed from the library.</p>"}

@@ -74,7 +74,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v22</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v23</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -257,8 +257,8 @@ function crowDiagnose(c) {
   const ABc = "Andrew Burn, 'Top Tips for Tip-Profilers' (video)";
   const DRLc = "Double Reed Ltd adjustment guide";
   if (c.missing === "tip") out.push({ t: "No pp crow → too much material at the TIP", z: "tip", b: "Blade in mouth to the top wire, three crows should emerge at increasing pressure (pp → a bit more → a bit more). Absence at pianissimo = too much cane at the tip. Light first step: 2000-grit tip sanding before any knife.", src: PGc + " (p.65)" });
-  if (c.missing === "mid") out.push({ t: "No second crow → too much material in the MID-section", z: "heart,channels", b: "The tip+mid crow emerges at slightly more pressure than the tip crow; its absence points at the mid-section (heart / channels).", src: PGc + " (p.65)" });
-  if (c.missing === "back") out.push({ t: "No full crow → too much material in the BACK", z: "back", b: "The third crow (tip+mid+back, ~1 octave below the tip crow) needs slightly more pressure again. Absence = too much cane at the back. Check for a 'wall of fibers' — an abrupt back-half thickness step kills the vibrations that form the full crow.", src: PGc + " (p.65); Hardy & Yoder (10:00–12:42)" });
+  if (c.missing === "mid") out.push({ t: "No second crow → too much material in the MID-section", z: "heart,channels", b: "The tip+mid crow emerges at slightly more pressure than the tip crow; its absence points at the mid-section (heart / channels). Crawford: thin the top ⅓ of the blade ALL across, ALL the way off the tip — but conservatively, since this is the heart area and excess removal sends the reed flat. Popkin: absent at that pressure = too much cane in the mid-section.", src: PGc + " (p.65); Crawford (Middle Crow)" });
+  if (c.missing === "back") out.push({ t: "No full crow → too much material in the BACK", z: "back", b: "The third crow (tip+mid+back, ~1 octave below the tip crow) needs slightly more pressure again. Absence = too much cane at the back. Crawford: remove cane on the bottom ⅓ of the reed, carefully AVOIDING the rails (removing rails at the collar compromises the entire reed). Also check for a 'wall of fibers' — an abrupt back-half thickness step kills the vibrations.", src: PGc + " (p.65); Crawford (Bottom Crow); Hardy & Yoder (10:00–12:42)" });
   if (c.dyn) out.push({ t: "Crow only at f/ff → the reed will only play in tune at f/ff", z: "tip", b: "A reed that crows only at high air pressure has a narrow dynamic range: crow at low dynamics = playable dynamic range. The crow should start at pp.", src: PGc + " (Crow Tuning, p.68)" });
   if (c.pitch === "flat") out.push({ t: "Tip crow below D (flat crow) → clip the tip ~1mm and rebalance", z: "tip", b: "Target: tip crow between D and F above middle C. Flat crow causes per Popkin: wide throat (→ narrower shaper/more bevel), long blade or tube (→ −1mm), top wire loose (→ tighten slightly).", src: PGc + " (tuning table, p.68–70)" });
   if (c.pitch === "sharp") out.push({ t: "Tip crow above F (sharp crow)", z: "tube", b: "Sharp crow causes per Popkin: undeveloped crow (→ scrape to establish the triple crow — most common!), narrow throat (→ wider shaper), short blade or tube (→ +1mm), top wire too tight (→ loosen slightly).", src: PGc + " (tuning table, p.68–70)" });
@@ -381,14 +381,17 @@ function diagnose(r, sym) {
     out.push({ t: "Tip open in the CENTER, sides collapse instantly → look for a step/bend in the windows (eyes) area", z: "windows", b: "The profiler can dent the windows zone, creating a bend in the cane. Blend by taking a little cane from JUST BEFORE the bend → the tip closes evenly side-to-center and the crow starts immediately.", src: AB + " (7:41–13:15)" });
   }
   out.push({ t: "Longevity: a reed finished over 1–2 weeks lives longer than one finished the same night", b: "Tip-profile on day 1, do finishing work day 2+ — the reed changes overnight (first soak → dry → second soak). Fast finishing = short reed life. Log your finishing pace alongside reed age for the correlations.", src: AB + " (20:22–21:28)" });
-  const KWJ = "Kristin Wolfe Jensen, 'How I Make Reeds' (Bassoon With a View)";
+  const KWJ = "Elizabeth Crawford, 'How I Make Reeds' (via Bassoon With a View)";
   if (sym.flat) {
     out.push({ t: "Heart over-removal → flat: check whether your heart zone has gone too thin", z: "heart", b: "The heart affects pitch and overall response — removing the right amount gives pitch and clarity, removing too much sends the reed flat. If you've been working the heart recently, stop and let it settle before more scraping.", src: KWJ });
   }
   if (sym.strong || sym.einstab) {
-    out.push({ t: "Sound too wild → sand down the RAILS", z: "rails", b: "Jensen's quick calm-down: sanding the rails tames a wild sound (rails should still thin gradually collar→tip — don't break the taper). Compare Hardy/Yoder's wing-edge thinning for the same symptom.", src: KWJ + "; corroborated by Hardy & Yoder (21:35)" });
+    out.push({ t: "Sound too wild → sand down the RAILS", z: "rails", b: "One quick calm-down route: sanding the rails tames a wild sound (rails should still thin gradually collar→tip — don't break the taper). Compare Hardy/Yoder's wing-edge thinning for the same symptom. Caution from Crawford: removing rails AT THE COLLAR compromises the entire reed.", src: "K. Wolfe Jensen ('Bassoon With a View') + Hardy & Yoder (21:35); Crawford rails warning" });
   }
-  out.push({ t: "Reference: spine = power, pitch, stability and the bottom octave; channels = bottom octave + power", z: "spine,channels", b: "Her zone map: spine up the center controls power/pitch/stability/bottom octave; channels (wider than most diagrams show) drive the bottom octave and power; rails = strength of the lowest register, thinning gradually collar→tip. The best argument for keeping the spine untouched.", src: KWJ });
+  if (sym.unresp) {
+    out.push({ t: "Good reed, but bottom octave resists → pinch the 2nd wire TOP-TO-BOTTOM", z: "tube", b: "Crawford's trick: with pitch and top octave otherwise good, a pinch of the 2nd wire from top to bottom opens the aperture slightly, LOWERS the pitch, and makes the bottom octave pop. Over a reed's life she adjusts wire 2 more than wire 1.", src: KWJ + " (Final Steps)" });
+  }
+  out.push({ t: "Reference: spine = power, pitch, stability and the bottom octave; channels = bottom octave + power", z: "spine,channels", b: "Her zone map: spine up the center controls power/pitch/stability/bottom octave; channels (wider than most diagrams show) drive the bottom octave and power; rails = strength of the lowest register, thinning gradually collar→tip — and removing rails at the collar compromises the entire reed. The best argument for keeping the spine untouched.", src: KWJ });
   const SCH = "Schillinger (Reeds 'n Stuff guide, after Eubanks)";
   if (sym.einstab || r.e_nestabila === "jå" || r.e_nestabila === "jā") {
     out.push({ t: "Eubanks harmonic comparison (tenor/individual notes): alternate normal vs flageolet fingering", z: "channels,rails", b: "Harmonic pitch TOO HIGH → scrape the corresponding spot in the CHANNEL. Harmonic pitch TOO LOW → scrape the corresponding spot on the RAILS. Note-per-note diagnostic that maps each unstable note to a physical reed location — works for E and any problem note.", src: SCH + " (Advanced Intonation)" });

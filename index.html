@@ -74,7 +74,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v20</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v21</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -191,6 +191,7 @@ function profilePlot(r) {
   return `<div style="margin-top:10px">
     <svg viewBox="0 0 300 110" style="width:100%;max-width:420px;background:#fafaf9;border:1px solid #e7e5e4;border-radius:8px">
       ${[0,0.25,0.5,0.75,1].map(t => `<line x1="10" x2="290" y1="${12 + t*78}" y2="${12 + t*78}" stroke="#eee" stroke-width="1"/>`).join("")}
+      ${(() => { const TGT = { "4":55, "8":65, "12":70, "16":80, "20":85, "24":90 }; const tp = pts.map((p, i) => (TGT[String(p).trim()] !== undefined ? `${xs[i]},${y(TGT[String(p).trim()])}` : null)).filter(Boolean); return tp.length >= 2 ? `<path d="M${tp.join(" L")}" fill="none" stroke="#16a34a" stroke-width="1.4" stroke-dasharray="3 4" opacity="0.8"/>` : ""; })()}
       <path d="${ok("left")}" fill="none" stroke="#1d4ed8" stroke-width="2.2"/>
       <path d="${ok("right")}" fill="none" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="5 3"/>
       ${xs.map((x, i) => `<text x="${x}" y="104" text-anchor="middle" font-size="8" fill="#78716c">${pts[i]}</text>`).join("")}
@@ -355,6 +356,23 @@ function diagnose(r, sym) {
   out.push({ t: "Crow should have a 'rattle' — a rich palette of overtones, not a single honk", b: "Test with reed in mouth to the first wire, loose embouchure, not forcing. No rattle → muffled on the bassoon; a honk when blowing hard over the wires = warning sign.", src: HY + " (3:14–4:53)" });
   out.push({ t: "Reed care: rinse after playing, blow through the butt end, toothbrush the blades — and never keep the reed case shut except for transport", b: "A dirty reed stops vibrating — clean it before scraping anything. Reed cases (even with holes) trap moisture; leave reeds out or the case open.", src: HY + " (Routines, 15:22–16:23)" });
   const AB = "Andrew Burn, 'Top Tips for Tip-Profilers' (video)";
+  const CD = "Davidsson, 'Reed Adjusting' (numbered points, 1996)";
+  if (sym.stuffy || sym.strong) {
+    out.push({ t: "Too hard/resistant: check the BACK zone vs the edges first — then scrape evenly over the WHOLE reed", z: "back,heart", b: "Too much wood in the middle (15) vs edges = stubborn reed. If wood is just too much overall, an even scrape over the whole blade (8) keeps the internal relationships and makes the reed lighter. Very hard cane, last resort: dip the whole reed in boiling water ~10s. Too little back wood = collapse — don't overdo.", src: CD + " (too hard; points 8, 15)" });
+  }
+  if (sym.weak || sym.mushy) {
+    out.push({ t: "Too soft: tighten wires 1+2 before cutting — then pinch behind the 1st wire, then clip", z: "tube", b: "Order of escalation: pull/tighten 1st and 2nd wires → pinch the reed on both sides just behind the 1st wire (darker, more resistance, stability) → only if very soft, cut the tip 0.5–1.0mm. Also: 1st wire shouldn't be over-tightened in general — it restrains vibration.", src: CD + " (too soft; points 10, 11, 14)" });
+  }
+  if (sym.strong) {
+    out.push({ t: "Wild/too easy tonguing: pinch the tip and sand the FRONT EDGE of the tip (P1000)", z: "tip", b: "For a reed that speaks too easily / too sparkling: pinch the tip closed with fingers and sand the very front edge, or cut 0.5mm. Pinching behind the 1st wire also adds resistance and stability.", src: CD + (diagSym.strong ? " (too easy tonguing; points 17, 10, 14)" : " (point 17)") });
+  }
+  if (sym.sharp) {
+    out.push({ t: "Too high in the low register: pinch over/under the 2nd wire (13) — then scrape front (1), back (3) and the eyes (16)", z: "windows,tube", b: "Davidsson's order: wire pinch first (larger opening, darker, easier low), then the eyes — grinding them makes the reed more flexible, vibrant and brighter, which tempers the sharp low register.", src: CD + " (too high in low register; points 13, 1, 3, 16)" });
+  }
+  if (sym.flat) {
+    out.push({ t: "Too low in the high register: pinch the SIDES of the 2nd wire (11) and/or over/under the 1st wire (12)", z: "tube", b: "Pinch sides of ring 2 → smaller opening, more stability, easier high; pinch over/under ring 1 → smaller opening, brighter, easier high. Ream out or cut the reed if needed. Note the lateral vocabulary: sides vs over/under are different adjustments with different effects.", src: CD + " (too low in high register; points 11, 12)" });
+  }
+  out.push({ t: "Reference: Davidsson's micrometer target table (middle of reed, from tip)", z: "back", b: "4mm: 0.55 · 8mm: 0.65 · 12mm: 0.70 · 16mm: 0.80 · 20mm: 0.85 · 24mm: 0.90 mm — for normal dense cane, 'balanced with a lot of power'. Compare with your own measurements; a lighter reed = even scrape everywhere so the relations stay. Shown as the dotted target line in the profile plot above.", src: CD + " (point 20)" });
   if (sym.unresp || sym.mushy) {
     out.push({ t: "Crow 'gate' test: all three levels (low/mid/high) should start AT ONCE with minimum air", z: "channels", b: "If you must blow through a resistance 'gate' before everything comes, or the HIGH level crows first (then mid, then low), the center-to-side difference is too big → file the CHANNELS (between spine and rails), expanding toward the tip. Complements Hardy/Yoder's 'rattle'.", src: AB + " (9:41–14:48)" });
     out.push({ t: "Smooth the tip-profiler's marks with a fine file — finish only BEHIND the already-cut zone", z: "tip", b: "Every profiler reed needs a light pass with the finest file, no hand pressure, smoothing the area the profiler blade crossed (not the thinnest Herzberg ledge). Effect: barely changes the opening but the crow responds immediately.", src: AB + " (1:08–6:15)" });

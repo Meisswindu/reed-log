@@ -74,7 +74,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v23</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v24</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -382,6 +382,12 @@ function diagnose(r, sym) {
   }
   out.push({ t: "Longevity: a reed finished over 1–2 weeks lives longer than one finished the same night", b: "Tip-profile on day 1, do finishing work day 2+ — the reed changes overnight (first soak → dry → second soak). Fast finishing = short reed life. Log your finishing pace alongside reed age for the correlations.", src: AB + " (20:22–21:28)" });
   const KWJ = "Elizabeth Crawford, 'How I Make Reeds' (via Bassoon With a View)";
+  const CSB = "Christian Smith (BYU), reed finishing video";
+  if (sym.einstab || r.e_nestabila === "jā") {
+    out.push({ t: "E2 test battery: slur C2–D2–E2, articulate E2 repeatedly, even bend the pitch", z: "tip", b: "Smith's protocol: E2 is a relatively unstable note, so check its pitch AND stability in the second octave — slurred, articulated, and bent. Very unstable + quite flat E2 → the reed needs clipping in 0.5mm steps (toward ~56–57mm total length). Slightly unstable → just play it in, or let the reed dry out for a day — stability often improves on its own.", src: CSB + " (Intonation / Final adjustments)" });
+    out.push({ t: "D-triad intonation check: D2 slightly flat = reed is a little LONG (normal for new reeds)", z: "tube", b: "Test D2 (stable reference — a little flat when new), D1 (should be flexible below pitch center), D3 (likely the lowest of the three Ds on a new reed). All acceptable on a fresh reed; they improve as it stabilizes and shortens toward the 56–57mm target.", src: CSB + " (Intonation analysis)" });
+    out.push({ t: "Test battery for any adjustment: 3-octave tongued scale + C2 crescendo→decrescendo sustain", z: "tip", b: "After ANY scraping: play a 3-octave scale tonguing every note (response per octave), and sustain C2 from mf up to f and back down to pp — a good reed sustains even at the softest dynamic. New reeds are normally unstable above the staff (F3+).", src: CSB + " (Response testing)" });
+  }
   if (sym.flat) {
     out.push({ t: "Heart over-removal → flat: check whether your heart zone has gone too thin", z: "heart", b: "The heart affects pitch and overall response — removing the right amount gives pitch and clarity, removing too much sends the reed flat. If you've been working the heart recently, stop and let it settle before more scraping.", src: KWJ });
   }

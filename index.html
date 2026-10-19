@@ -74,7 +74,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v21</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v22</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -381,6 +381,14 @@ function diagnose(r, sym) {
     out.push({ t: "Tip open in the CENTER, sides collapse instantly → look for a step/bend in the windows (eyes) area", z: "windows", b: "The profiler can dent the windows zone, creating a bend in the cane. Blend by taking a little cane from JUST BEFORE the bend → the tip closes evenly side-to-center and the crow starts immediately.", src: AB + " (7:41–13:15)" });
   }
   out.push({ t: "Longevity: a reed finished over 1–2 weeks lives longer than one finished the same night", b: "Tip-profile on day 1, do finishing work day 2+ — the reed changes overnight (first soak → dry → second soak). Fast finishing = short reed life. Log your finishing pace alongside reed age for the correlations.", src: AB + " (20:22–21:28)" });
+  const KWJ = "Kristin Wolfe Jensen, 'How I Make Reeds' (Bassoon With a View)";
+  if (sym.flat) {
+    out.push({ t: "Heart over-removal → flat: check whether your heart zone has gone too thin", z: "heart", b: "The heart affects pitch and overall response — removing the right amount gives pitch and clarity, removing too much sends the reed flat. If you've been working the heart recently, stop and let it settle before more scraping.", src: KWJ });
+  }
+  if (sym.strong || sym.einstab) {
+    out.push({ t: "Sound too wild → sand down the RAILS", z: "rails", b: "Jensen's quick calm-down: sanding the rails tames a wild sound (rails should still thin gradually collar→tip — don't break the taper). Compare Hardy/Yoder's wing-edge thinning for the same symptom.", src: KWJ + "; corroborated by Hardy & Yoder (21:35)" });
+  }
+  out.push({ t: "Reference: spine = power, pitch, stability and the bottom octave; channels = bottom octave + power", z: "spine,channels", b: "Her zone map: spine up the center controls power/pitch/stability/bottom octave; channels (wider than most diagrams show) drive the bottom octave and power; rails = strength of the lowest register, thinning gradually collar→tip. The best argument for keeping the spine untouched.", src: KWJ });
   const SCH = "Schillinger (Reeds 'n Stuff guide, after Eubanks)";
   if (sym.einstab || r.e_nestabila === "jå" || r.e_nestabila === "jā") {
     out.push({ t: "Eubanks harmonic comparison (tenor/individual notes): alternate normal vs flageolet fingering", z: "channels,rails", b: "Harmonic pitch TOO HIGH → scrape the corresponding spot in the CHANNEL. Harmonic pitch TOO LOW → scrape the corresponding spot on the RAILS. Note-per-note diagnostic that maps each unstable note to a physical reed location — works for E and any problem note.", src: SCH + " (Advanced Intonation)" });

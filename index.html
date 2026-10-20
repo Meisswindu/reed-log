@@ -73,9 +73,10 @@
     <button id="t-new" onclick="go('new')">+ Jauna</button>
     <button id="t-lib" onclick="go('library')">Bibliotēka</button>
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
+    <button id="t-stats" onclick="go('stats')">📊</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v40</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v41</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -186,6 +187,45 @@ function reedToMarkdown(r) {
 }
 
 function ratingHistory(r) { const h = []; if (r.reitings_sākumā) h.push(r.reitings_sākumā); r.log.forEach(e => e.rating && h.push(e.rating)); if (r.reitings_tagad && String(r.reitings_tagad) !== String(h[h.length-1] ?? "")) h.push(r.reitings_tagad); return h; }
+
+// ---------------- statistics ----------------
+function statAvg(arr) { const a = arr.filter(x => typeof x === "number" && !isNaN(x)); return a.length ? a.reduce((s,v)=>s+v,0)/a.length : null; }
+function statsMinutesVsRating() {
+  // per reed: total play-in minutes vs current rating — does playing-in improve reeds?
+  return reeds.filter(r => (r.log||[]).some(e => /iespēlēšanās/i.test(e.text||"")) && r.reitings_tagad !== "" && r.reitings_tagad != null)
+    .map(r => ({ id: r.reed_id, mins: minutesPlayed(r), rating: parseFloat(r.reitings_tagad) }))
+    .filter(x => !isNaN(x.rating));
+}
+function statsByGroup(key) {
+  // avg current rating + count by a frontmatter key (metode, shape, cane_hardness…)
+  const groups = {};
+  for (const r of reeds) {
+    const k = String(r[key] || "").trim();
+    if (!k || k === "-") continue;
+    if (r.reitings_tagad === "" || r.reitings_tagad == null) continue;
+    const v = parseFloat(r.reitings_tagad);
+    if (isNaN(v)) continue;
+    (groups[k] = groups[k] || []).push(v);
+  }
+  return Object.entries(groups).map(([k, arr]) => ({ k, n: arr.length, avg: arr.reduce((s,v)=>s+v,0)/arr.length }))
+    .sort((a,b) => b.avg - a.avg);
+}
+function statsEOverTime() {
+  // E pakāpe trajectory per reed from e_log (chronic fix tracking)
+  return reeds.filter(r => (r.e_log||[]).length > 1).map(r => ({
+    id: r.reed_id,
+    points: r.e_log.map(e => ({ stamp: e.stamp, to: e.to }))
+  }));
+}
+function statsMinsByDay() {
+  // play-in minutes per calendar day (last 14 days with data)
+  const byDay = {};
+  for (const r of reeds) for (const e of (r.log||[])) {
+    const m = /iespēlēšanās\s+([\d.,]+)\s*min/i.exec(e.text || "");
+    if (m) { const d = String(e.stamp).slice(0,10); byDay[d] = (byDay[d] || 0) + parseFloat(m[1].replace(",", ".")); }
+  }
+  return Object.entries(byDay).sort((a,b) => a[0].localeCompare(b[0])).slice(-14);
+}
 function getM(r, point) {
   const row = (r.m || []).find(x => normPoint(x.point) === normPoint(point));
   if (!row) return null;
@@ -897,7 +937,7 @@ function similarity(a, b) {
 
 function render() {
   document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("on"));
-  const tabId = { sakums:"t-sakums", log:"t-log", play:"t-play", new:"t-new", library:"t-lib", diag:"t-diag", settings:"t-sakums" }[view] || "t-sakums";
+  const tabId = { sakums:"t-sakums", log:"t-log", play:"t-play", new:"t-new", library:"t-lib", diag:"t-diag", stats:"t-stats", settings:"t-sakums" }[view] || "t-sakums";
   document.getElementById(tabId).classList.add("on");
   const app = document.getElementById("app");
   document.getElementById("subtitle").textContent = `Fagots/Mēles/Reeds · ${reeds.length} mēles` + (cfg.token ? " · 🔗 GitHub" : " · lokāli");
@@ -1017,6 +1057,58 @@ function render() {
         </div>` : ""}
       ${!chosen && !playSpin ? `<div class="sub" style="font-size:11px;margin-top:10px;text-align:center">Iespējamās mēles: ${pool.map(r => `${esc(r.reed_id)} (${daysSincePlayed(r) >= 99 ? "nav spēlēta" : daysSincePlayed(r) + "d"}, ${minutesPlayed(r)}min)`).join(" · ")}</div>` : ""}
       ` : "<p class='txt' style='margin-top:10px'>Nav mēļu ar statusu testēšanā. Ritenis strādā tikai ar testēšanā mēlēm — aktīvās un beigtās neparādās.</p>"}
+    </div>`;
+  }
+  else if (view === "stats") {
+    const mv = statsMinutesVsRating();
+    const mvAvg = statAvg(mv.map(x => x.rating));
+    const byMetode = statsByGroup("metode");
+    const byShape = statsByGroup("shape");
+    const byHardness = statsByGroup("cane_hardness");
+    const byCane = statsByGroup("cane_manufacturer");
+    const eTraj = statsEOverTime();
+    const minsDay = statsMinsByDay();
+    const fmt = v => v == null ? "–" : (Math.round(v * 10) / 10).toString();
+    app.innerHTML = `
+    <div class="card"><b style="font-size:14px">📊 Statistika</b><div class="sub" style="font-size:11px;margin-top:2px">Tavi dati, atbilžu meklēšana. Vairāk log ierakstu = jēdzīgāki skaitļi.</div></div>
+    <div class="card"><b style="font-size:13px">⏱️ Iespēlēšanās minūtes → reitings</b>
+      ${mv.length ? `
+      <div class="sub" style="font-size:11px;margin:4px 0 6px">${mv.length} mēles ar 🎡/✋ ierakstiem · vidējais reitings: ${fmt(mvAvg)}/10</div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        ${mv.slice().sort((a,b) => b.mins - a.mins).map(x => `<div style="display:flex;align-items:center;gap:8px">
+          <span style="width:52px;font-size:12px;font-weight:700">${esc(x.id)}</span>
+          <div style="flex:1;height:14px;background:#f5f5f4;border-radius:7px;overflow:hidden"><div style="width:${Math.min(100, x.mins / 4)}%;height:100%;background:${x.rating >= 7 ? "#22c55e" : x.rating >= 5 ? "#f59e0b" : "#ef4444"}"></div></div>
+          <span style="font-size:12px;color:#78716c;width:60px;text-align:right">${x.mins} min</span>
+          <span style="font-size:12px;font-weight:700;width:36px;text-align:right;color:${x.rating >= 7 ? "#16a34a" : x.rating >= 5 ? "#b45309" : "#b91c1c"}">${x.rating}</span>
+        </div>`).join("")}
+      </div>
+      <div class="sub" style="font-size:11px;margin-top:6px">Sarkans &lt;5 · dzeltens 5–6 · zaļš ≥7 reitings. (Jo vairāk ierakstu, jo skaidrāk redzēsi, vai ilgāka iespēlēšanās dod labāku reitingu.)</div>` : "<p class='txt' style='margin-top:8px'>Vēl nav pietiekami daudz 🎡 ierakstu ar minūtēm un reitingu.</p>"}
+    </div>
+    <div class="card"><b style="font-size:13px">📈 Grupu vidējie reitingi</b>
+      ${[["Metode", byMetode], ["Shape", byShape], ["Koka cietība", byHardness], ["Koka ražotājs", byCane]].map(([title, groups]) => groups.length ? `
+      <div style="margin-top:10px"><b style="font-size:12px">${title}</b>
+        ${groups.map(g => `<div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+          <span style="font-size:12px;width:110px">${esc(g.k)} <span class="sub" style="font-size:10px">(${g.n})</span></span>
+          <div style="flex:1;height:12px;background:#f5f5f4;border-radius:6px;overflow:hidden"><div style="width:${g.avg*10}%;height:100%;background:#8b5cf6"></div></div>
+          <span style="font-size:12px;font-weight:700;width:28px;text-align:right">${fmt(g.avg)}</span>
+        </div>`).join("")}
+      </div>` : "").join("") || "<p class='txt'>Vēl nav datu.</p>"}
+      <div class="sub" style="font-size:11px;margin-top:6px">Reitings tagad, tikai mēles ar reitingu. n = mēļu skaits grupā.</div>
+    </div>
+    <div class="card"><b style="font-size:13px">🎯 E nestabilitāte laika gaitā</b>
+      ${eTraj.length ? eTraj.map(t => `<div style="margin-top:8px">
+        <b style="font-size:12px">${esc(t.id)}</b>
+        <div class="txt" style="font-size:12px">${t.points.map(p => `${esc(p.stamp.slice(5))}: ${esc(p.to)}`).join(" → ")}</div>
+      </div>`).join("") : "<p class='txt' style='margin-top:8px'>Vēl nav mēļu ar vairāk kā vienu E novērtējumu.</p>"}
+      <div class="sub" style="font-size:11px;margin-top:6px">No e_log vēstures — kā E stabilitāte mainās pēc kārtējās korekcijas.</div>
+    </div>
+    <div class="card"><b style="font-size:13px">📅 Iespēlēšanās pa dienām</b>
+      ${minsDay.length ? minsDay.map(([d, m]) => `<div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+        <span style="font-size:12px;width:92px">${d.slice(5)}</span>
+        <div style="flex:1;height:12px;background:#f5f5f4;border-radius:6px;overflow:hidden"><div style="width:${Math.min(100, m/3)}%;height:100%;background:#0ea5e9"></div></div>
+        <span style="font-size:12px;color:#78716c;width:70px;text-align:right">${Math.round(m)} min</span>
+      </div>`).join("") : "<p class='txt' style='margin-top:8px'>Vēl nav 🎡 ierakstu ar minūtēm.</p>"}
+      <div class="sub" style="font-size:11px;margin-top:6px">Pēdējās 14 dienas ar datiem. Sāc piepildīt — tā redzēsi savu spēlēšanas ritmu.</div>
     </div>`;
   }
   else if (view === "library") {

@@ -74,7 +74,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v26</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v27</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -784,7 +784,7 @@ function render() {
           <div><label>reed_id (auto)</label><input value="${esc(f.reed_id)}" onchange="newForm.reed_id=this.value;render()"></div>
           <div><label>datums</label><input type="date" value="${esc(f.datums)}" onchange="newForm.datums=this.value"></div>
           <div><label>shape</label><input placeholder="9" value="${esc(f.shape)}" oninput="newForm.shape=this.value"></div>
-          <div><label>cane_hardness</label><input placeholder="piem. 10.5" value="${esc(f.cane_hardness)}" oninput="newForm.cane_hardness=this.value"></div>
+          <div><label>cane_hardness</label><input inputmode="decimal" placeholder="piem. 10.5" value="${esc(f.cane_hardness)}" oninput="newForm.cane_hardness=this.value"></div>
           <div><label>1. drāts</label><input placeholder="copper / 6 / 7" value="${esc(f.wire_1)}" oninput="newForm.wire_1=this.value">${wireChipsNew(1)}</div>
           <div><label>2. drāts</label><input placeholder="6 / 7 / steel" value="${esc(f.wire_2)}" oninput="newForm.wire_2=this.value">${wireChipsNew(2)}</div>
           <div><label>3. drāts</label><input placeholder="6 / 6 dubultā / 7 / steel" value="${esc(f.wire_3)}" oninput="newForm.wire_3=this.value">${wireChipsNew(3)}</div>
@@ -807,8 +807,8 @@ function render() {
           ${MM_POINTS.map(p => {
             const row = f.m.find(x => normPoint(x.point) === normPoint(p)) || {left:"",right:""};
             return `<div style="display:flex;gap:6px;margin:4px 0;align-items:center"><span style="font-size:12px;color:#78716c;width:20px">${p}</span>
-            <input style="height:32px" placeholder="ar 1. drāti" value="${esc(row.left)}" oninput="updM('${p}','left',this.value)">
-            <input style="height:32px" placeholder="bez" value="${esc(row.right)}" oninput="updM('${p}','right',this.value)"></div>`;
+            <input style="height:32px" inputmode="decimal" type="text" placeholder="ar 1. drāti" value="${esc(row.left)}" oninput="updM('${p}','left',this.value)">
+            <input style="height:32px" inputmode="decimal" type="text" placeholder="bez" value="${esc(row.right)}" oninput="updM('${p}','right',this.value)"></div>`;
           }).join("")}
         </details>
         <button class="primary" onclick="saveReed()" ${f.reed_id==="…"?"disabled":""}>Izveidot ${esc(f.reed_id)}.md</button>
@@ -898,8 +898,8 @@ function render() {
           const row = r.m.find(x => normPoint(x.point) === normPoint(p)) || {left:"",right:""};
           return `<div style="display:flex;gap:8px;margin:6px 0;align-items:center">
             <span style="font-size:13px;color:#78716c;width:20px;text-align:center;font-weight:600">${p}</span>
-            <input style="height:36px" placeholder="ar 1. drāti" value="${esc(row.left)}" oninput="editM('${p}','left',this.value)">
-            <input style="height:36px" placeholder="bez" value="${esc(row.right)}" oninput="editM('${p}','right',this.value)">
+            <input style="height:36px" inputmode="decimal" type="text" placeholder="ar 1. drāti" value="${esc(row.left)}" oninput="editM('${p}','left',this.value)">
+            <input style="height:36px" inputmode="decimal" type="text" placeholder="bez" value="${esc(row.right)}" oninput="editM('${p}','right',this.value)">
           </div>`;
         }).join("")}
         ${profilePlot(r)}

@@ -75,7 +75,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v38</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v39</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -728,6 +728,22 @@ function minutesPlayed(r) {
     return sum + (m ? parseFloat(m[1].replace(",", ".")) : 0);
   }, 0);
 }
+function reedAgeStart(r) {
+  // age counts from the first scrape ≈ creation date; fall back to earliest recorded stamp if datums missing
+  const stamps = [];
+  if (r.datums) stamps.push(String(r.datums));
+  if (r.log) r.log.forEach(e => stamps.push(String(e.stamp)));
+  if (r.comments) r.comments.forEach(c => stamps.push(String(c.stamp)));
+  const dates = stamps.map(s => s.slice(0, 10)).filter(s => /^\d{4}-\d{2}-\d{2}$/.test(s)).sort();
+  return dates[0] || null;
+}
+function reedAge(r, at) {
+  const start = reedAgeStart(r);
+  const day = String(at || "").slice(0, 10);
+  if (!start || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+  const n = Math.round((new Date(day) - new Date(start)) / 86400000);
+  return n >= 0 ? n : null;
+}
 function playPool() { return reeds.filter(r => r.status === "testēšanā"); }
 
 function quickStatus(id, s) {
@@ -908,8 +924,8 @@ function render() {
         <button class="primary" onclick="saveLog()">Pierakstīt</button>
       </div>
       <div class="card"><b style="font-size:13px">Pēdējie ieraksti</b>
-        ${reeds.flatMap(r => r.log.map(e => ({...e, id:r.reed_id}))).sort((a,b)=>b.stamp.localeCompare(a.stamp)).slice(0,6).map(e => `
-          <div class="entry"><div class="stamp"><span>${esc(e.id)}</span><span>${esc(e.stamp)}</span></div>
+        ${reeds.flatMap(r => r.log.map(e => ({...e, id:r.reed_id, age:reedAge(r, e.stamp)}))).sort((a,b)=>b.stamp.localeCompare(a.stamp)).slice(0,6).map(e => `
+          <div class="entry"><div class="stamp"><span>${esc(e.id)}</span><span>${esc(e.stamp)}${e.age !== null && e.age !== undefined ? ` · diena ${e.age + 1}` : ""}</span></div>
           ${e.rating ? `<span class="star">★ ${e.rating}/10</span>` : ""}<div class="txt">${esc(e.text)}</div></div>`).join("") || "<p class='txt'>Vēl nav ierakstu.</p>"}
       </div>`;
   }
@@ -970,7 +986,7 @@ function render() {
       ${chosen ? `
         <div class="card" style="margin-top:14px;background:#f0fdf4;border-color:#86efac">
           <b style="font-size:13px">${esc(chosen.reed_id)} — iespēlē un ieraksti!</b>
-          <div class="sub" style="font-size:11px;margin-top:4px">Pēdējā spēle: ${chosen.log && chosen.log.length ? esc(chosen.log.map(e=>e.stamp).sort().slice(-1)[0]) : "nav vēl"} (${daysSincePlayed(chosen) >= 99 ? "nezināms" : daysSincePlayed(chosen) + " dienas atpakaļ"}) · kopā iespēlēts: ${minutesPlayed(chosen)} min · reitings tagad: ${esc(chosen.reitings_tagad || "–")}/10</div>
+          <div class="sub" style="font-size:11px;margin-top:4px">Pēdējā spēle: ${chosen.log && chosen.log.length ? esc(chosen.log.map(e=>e.stamp).sort().slice(-1)[0]) : "nav vēl"} (${daysSincePlayed(chosen) >= 99 ? "nezināms" : daysSincePlayed(chosen) + " dienas atpakaļ"}) · kopā iespēlēts: ${minutesPlayed(chosen)} min · vecums: ${reedAge(chosen) !== null ? "diena " + (reedAge(chosen) + 1) : "nezināms"} · reitings tagad: ${esc(chosen.reitings_tagad || "–")}/10</div>
           ${daysSincePlayed(chosen) >= 14 ? `<div class="sub" style="font-size:11px;margin-top:6px;color:#b45309">⚠️ Šī mēle nav spēlēta ${daysSincePlayed(chosen) >= 99 ? "vēl nekad" : "jau " + daysSincePlayed(chosen) + " dienas"}. Ja tā ir laba — pārcel uz <b>aktīva</b>; ja nespēj tikt — apsver <b>salauzt</b> un sākt jaunu.</div>
           <div style="display:flex;gap:6px;margin-top:6px">
             <button class="chip" onclick="quickStatus('${esc(chosen.reed_id)}','aktīva')">✅ Laba — uz aktīva</button>
@@ -1126,7 +1142,7 @@ function render() {
         <div class="rate">${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${entryRating===n?"on":""}" onclick="entryRating=entryRating===${n}?0:${n};render()">${n}</button>`).join("")}</div>
         <button class="chip" style="margin-top:6px" onclick="addEntryToReed()">+ Pievienot ierakstu</button>
         <div style="margin-top:10px">
-        ${r.log.slice().sort((a,b) => String(b.stamp).localeCompare(String(a.stamp))).map((e,i) => `<div class="entry"><div class="stamp"><span>${esc(e.stamp)}</span><button class="chip" style="padding:0 8px;font-size:11px;color:#b91c1c" onclick="delEntry(${r.log.indexOf(e)})">dzēst</button></div>${e.rating ? `<span class="star">★ ${e.rating}/10</span>` : ""}<div class="txt">${esc(e.text)}</div></div>`).join("") || "<p class='txt'>Vēl nav ierakstu.</p>"}
+        ${r.log.slice().sort((a,b) => String(b.stamp).localeCompare(String(a.stamp))).map((e,i) => { const age = reedAge(r, e.stamp); return `<div class="entry"><div class="stamp"><span>${esc(e.stamp)}${age !== null ? ` · diena ${age + 1}` : ""}</span><button class="chip" style="padding:0 8px;font-size:11px;color:#b91c1c" onclick="delEntry(${r.log.indexOf(e)})">dzēst</button></div>${e.rating ? `<span class="star">★ ${e.rating}/10</span>` : ""}<div class="txt">${esc(e.text)}</div></div>`; }).join("") || "<p class='txt'>Vēl nav ierakstu.</p>"}
         </div>
       </div>`;
   }

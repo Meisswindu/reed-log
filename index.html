@@ -75,7 +75,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v39</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v40</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -707,6 +707,18 @@ function parseReedMarkdown(text, fallbackId) {
 // ---------------- UI ----------------
 let view = "sakums";
 let selectedMatch = null;
+let libFilter = { q: "", status: "", e: "" }; // search text, status, E-stability filter
+function libFiltered() {
+  const q = libFilter.q.trim().toLowerCase();
+  return sortedForLibrary().filter(r => {
+    if (libFilter.status && r.status !== libFilter.status) return false;
+    if (libFilter.e === "nestabila" && r.e_nestabila !== "jā") return false;
+    if (libFilter.e === "stabila" && r.e_nestabila === "jā") return false;
+    if (!q) return true;
+    const hay = [r.reed_id, r.cane_manufacturer, r.metode, r.shape, r.status, r.tip_profiler_setting, r.cane_hardness, r.wire_1, r.wire_2, r.wire_3, ...(r.log||[]).map(e=>e.text), ...(r.comments||[]).map(c=>c.text)].filter(Boolean).join(" ").toLowerCase();
+    return hay.includes(q);
+  });
+}
 let quickRating = 0;
 let logTarget = reeds.length ? reeds[0].reed_id : "";
 let newForm = null;
@@ -1027,7 +1039,23 @@ function render() {
         <div style="display:flex;justify-content:space-between"><b style="font-size:13px">Līdzīgas mēles: ${esc(sel.reed_id)}</b><button class="chip" onclick="selectedMatch=null;render()">notīrīt</button></div>
         ${matches.length ? matches.map(({r,s}) => `<div class="matchrow"><span><b>${esc(r.reed_id)}</b></span><span class="txt">${esc(r.cane_manufacturer||"?")} · TP ${esc(r.tip_profiler_setting||"?")}</span><span class="star">${Math.min(99,Math.round(s*9))}% match</span></div>`).join("") : "<p class='txt'>Nav tuvu sakritību.</p>"}
       </div>` : ""}
-      ${sortedForLibrary().map(r => {
+      <div class="card" style="padding:12px 16px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input id="libq" placeholder="🔍 mekleet mēli (id, koks, teksts…)" value="${esc(libFilter.q)}" oninput="libFilter.q=this.value" onkeydown="if(event.key==='Enter'){libFilter.q=this.value;render()}" style="flex:1;min-width:150px;height:36px">
+          <select onchange="libFilter.status=this.value;render()" style="height:36px">
+            <option value="">— statuss —</option>
+            ${STATUSES.map(s => `<option value="${s}" ${libFilter.status===s?"selected":""}>${s}</option>`).join("")}
+          </select>
+          <select onchange="libFilter.e=this.value;render()" style="height:36px">
+            <option value="">— E stabilitāte —</option>
+            <option value="nestabila" ${libFilter.e==="nestabila"?"selected":""}>E nestabila</option>
+            <option value="stabila" ${libFilter.e==="stabila"?"selected":""}>E stabila</option>
+          </select>
+          ${(libFilter.q || libFilter.status || libFilter.e) ? `<button class="chip" onclick="libFilter={q:'',status:'',e:''};render()">✕ notīrīt</button>` : ""}
+        </div>
+        <div class="sub" style="font-size:11px;margin-top:6px">Rāda ${libFiltered().length} no ${reeds.length} mēlēm</div>
+      </div>
+      ${libFiltered().map(r => {
         const hist = ratingHistory(r);
         return `<div class="card">
           <div style="display:flex;justify-content:space-between;align-items:start">

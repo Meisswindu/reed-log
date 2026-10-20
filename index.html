@@ -75,7 +75,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v34</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v35</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -504,9 +504,13 @@ function corrRow(label, d) {
   const u = d.unstable, s = d.stable;
   return `<tr><td>${label}</td><td>${u.diff.toFixed(1)}</td><td>${s.diff.toFixed(1)}</td><td style="font-weight:700;color:${u.diff > s.diff ? "#b91c1c" : "#15803d"}">${u.diff > s.diff ? "↑" : "↓"} ${Math.abs(u.diff - s.diff).toFixed(1)}</td></tr>`;
 }
+function lastEditStamp(r) {
+  if (!r.log || !r.log.length) return r.datums || "";
+  return String(r.log.map(e => e.stamp).sort().slice(-1)[0]);
+}
 function sortedForLibrary() {
   const rank = s => s === "aktīva" ? 0 : s === "testēšanā" ? 1 : s === "rezerve" ? 2 : 3; // nolietota/salauzta last
-  return [...reeds].sort((a,b) => rank(a.status) - rank(b.status) || String(b.datums || "").localeCompare(String(a.datums || "")) || a.reed_id.localeCompare(b.reed_id));
+  return [...reeds].sort((a,b) => rank(a.status) - rank(b.status) || String(lastEditStamp(b)).localeCompare(String(lastEditStamp(a))) || a.reed_id.localeCompare(b.reed_id));
 }
 function sparkline(values) {
   if (values.length < 2) return "";

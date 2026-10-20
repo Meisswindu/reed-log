@@ -75,7 +75,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v33</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v34</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -534,14 +534,27 @@ async function gh(path, opts = {}) {
 // encode each path segment but keep the slashes
 const encPath = (p) => p.split("/").map(encodeURIComponent).join("/");
 
+const ghQueue = {}; // per-path serialization: prevents concurrent PUTs racing on sha
 async function commitFile(path, content, message) {
-  let sha = null;
-  try { const ex = await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${encPath(path)}?ref=${encodeURIComponent(cfg.branch)}`); sha = ex.sha; } catch (e) { /* new file */ }
-  await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${encPath(path)}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, content: btoa(unescape(encodeURIComponent(content))), sha, branch: cfg.branch })
+  const prev = ghQueue[path] || Promise.resolve();
+  const run = prev.catch(() => {}).then(async () => {
+    const put = async () => {
+      let sha = null;
+      try { const ex = await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${encPath(path)}?ref=${encodeURIComponent(cfg.branch)}`); sha = ex.sha; } catch (e) { /* new file */ }
+      await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${encPath(path)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, content: btoa(unescape(encodeURIComponent(content))), sha, branch: cfg.branch })
+      });
+    };
+    try { await put(); }
+    catch (e) {
+      if (String(e.message).includes("409")) { await put(); } // sha raced: refetch once and retry
+      else throw e;
+    }
   });
+  ghQueue[path] = run.catch(() => {});
+  await run;
 }
 
 async function pullFromGithub() {

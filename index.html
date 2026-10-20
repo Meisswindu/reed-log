@@ -74,7 +74,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v27</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v28</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -648,7 +648,7 @@ let quickRating = 0;
 let logTarget = reeds.length ? reeds[0].reed_id : "";
 let newForm = null;
 let editTarget = null;
-let editDraft = "";
+let editDraft = ""; let entryRating = 0;
 let editBaseline = null;
 let editBaselineE = null;
 let editBaselineF = null;
@@ -703,6 +703,7 @@ function saveLog() {
   const wtxt = wireText();
   const combined = [wtxt, txt].filter(Boolean).join(" ");
   if (!quickRating && !combined) return;
+  if (!quickRating) { toast("⭐ Ievērtē mēli 1–10 — reitings ir svarīgs datam!"); return; }
   const r = reeds.find(x => x.reed_id === logTarget);
   const entry = { stamp: nowStamp(), rating: quickRating || null, text: combined };
   r.log.push(entry);
@@ -947,6 +948,8 @@ function render() {
         <b style="font-size:14px">📝 Log <span class="sub" style="font-size:11px">(${r.log.length} ieraksti)</span></b>
         <label style="margin-top:10px">Jauns ieraksts</label>
         <textarea id="editlog" rows="2" placeholder="kas notika ar šo mēli…" oninput="editDraft=this.value">${esc(editDraft)}</textarea>
+        <label style="margin-top:8px">Reitings tagad (1–10) <span class="sub" style="font-size:10px">— pievienojas ierakstam un atjauno reitings_tagad</span></label>
+        <div class="rate">${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${entryRating===n?"on":""}" onclick="entryRating=entryRating===${n}?0:${n};render()">${n}</button>`).join("")}</div>
         <button class="chip" style="margin-top:6px" onclick="addEntryToReed()">+ Pievienot ierakstu</button>
         <div style="margin-top:10px">
         ${r.log.slice().sort((a,b) => String(b.stamp).localeCompare(String(a.stamp))).map((e,i) => `<div class="entry"><div class="stamp"><span>${esc(e.stamp)}</span><button class="chip" style="padding:0 8px;font-size:11px;color:#b91c1c" onclick="delEntry(${r.log.indexOf(e)})">dzēst</button></div>${e.rating ? `<span class="star">★ ${e.rating}/10</span>` : ""}<div class="txt">${esc(e.text)}</div></div>`).join("") || "<p class='txt'>Vēl nav ierakstu.</p>"}
@@ -1056,11 +1059,14 @@ function rateReed(n) {
 }
 function addEntryToReed() {
   const t = editDraft.trim();
-  if (!t) return;
+  if (!t) { toast("✍️ Ieraksti tekstu…"); return; }
+  if (!entryRating) { toast("⭐ Ievērtē mēli 1–10 — reitings ir svarīgs datam!"); return; }
   const r = reeds.find(x => x.reed_id === editTarget);
-  r.log.push({ stamp: nowStamp(), rating: null, text: t });
-  editDraft = "";
+  r.log.push({ stamp: nowStamp(), rating: entryRating, text: t });
+  r.reitings_tagad = entryRating;
+  editDraft = ""; entryRating = 0;
   persist(); render(); toast("Ieraksts pievienots ✓");
+  pushToGithub(r, "atjaunināts");
 }
 function delEntry(i) { const r = reeds.find(x => x.reed_id === editTarget); r.log.splice(i, 1); persist(); render(); }
 function addComment() {

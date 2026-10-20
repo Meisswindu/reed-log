@@ -75,7 +75,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v31</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v32</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -650,8 +650,8 @@ let logTarget = reeds.length ? reeds[0].reed_id : "";
 let newForm = null;
 let editTarget = null;
 let editDraft = ""; let entryRating = 0;
-let playPick = null; let playSpin = null; let playRating = 0; let playMins = ""; let playWhat = ""; let pickMode = false;
-function playHarvest() { playMins = document.getElementById("playmins")?.value ?? playMins; playWhat = document.getElementById("playwhat")?.value ?? playWhat; }
+let playPick = null; let playSpin = null; let playRating = 0; let playMins = ""; let playWhat = ""; let playFeel = ""; let pickMode = false;
+function playHarvest() { playMins = document.getElementById("playmins")?.value ?? playMins; playWhat = document.getElementById("playwhat")?.value ?? playWhat; playFeel = document.getElementById("playfeel")?.value ?? playFeel; }
 
 function daysSincePlayed(r) {
   if (!r.log || !r.log.length) return 99;
@@ -700,14 +700,17 @@ function spinWheel() {
 function savePlayIn() {
   const r = reeds.find(x => x.reed_id === playPick);
   if (!r) return;
-  const mins = (document.getElementById("playmins")?.value || "").trim();
-  const what = (document.getElementById("playwhat")?.value || "").trim();
+  playHarvest();
+  const mins = playMins.trim();
+  const what = playWhat.trim();
+  const feel = playFeel.trim();
   if (!playRating) { toast("⭐ Ievērtē mēli 1–10 — reitings ir svarīgs datam!"); return; }
   if (!mins) { toast("⏱️ Ieraksti cik minūtes spēlēji!"); return; }
-  const text = `🎡 Iespēlēšanās ${mins} min${what ? " — " + what : ""}`;
+  if (!feel) { toast("📝 Ieraksti, kā mēle jutās — tas ir obligāts!"); return; }
+  const text = `🎡 Iespēlēšanās ${mins} min${what ? " — " + what : ""}\nSajūtas: ${feel}`;
   r.log.push({ stamp: nowStamp(), rating: playRating, text });
   r.reitings_tagad = playRating;
-  playPick = null; playRating = 0;
+  playPick = null; playRating = 0; playFeel = "";
   persist(); render(); toast("Iespēlēšanās ierakstīta ✓");
   pushToGithub(r, "atjaunināts");
 }
@@ -903,6 +906,8 @@ function render() {
           <input id="playmins" inputmode="numeric" placeholder="piem. 15" value="${esc(playMins)}" oninput="playMins=this.value" style="height:36px">
           <label style="margin-top:8px">Ko spēlēji?</label>
           <input id="playwhat" placeholder="piem. Clark skalas, orķestra fragmenti…" value="${esc(playWhat)}" oninput="playWhat=this.value">
+          <label style="margin-top:8px">Kā mēle jutās? <span style="color:#b45309">*</span></label>
+          <input id="playfeel" placeholder="piem. stīva, bet E stabila; sākumā cenzas, pēc 10 min atslābst…" value="${esc(playFeel)}" oninput="playFeel=this.value">
           <label style="margin-top:8px">Reitings pēc iespēlēšanās (1–10)</label>
           <div class="rate">${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${playRating===n?"on":""}" onclick="playRating=${n};render()">${n}</button>`).join("")}</div>
           <button class="primary" style="margin-top:8px" onclick="playHarvest();savePlayIn()">💾 Ierakstīt iespēlēšanos</button>

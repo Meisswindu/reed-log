@@ -75,7 +75,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v29</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v30</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -659,13 +659,29 @@ function daysSincePlayed(r) {
   const days = (Date.now() - new Date(last.slice(0, 10)).getTime()) / 86400000;
   return Math.max(0, Math.round(days));
 }
+function minutesPlayed(r) {
+  if (!r.log || !r.log.length) return 0;
+  return r.log.reduce((sum, e) => {
+    const m = /iespēlēšanās\s+([\d.,]+)\s*min/i.exec(e.text || "");
+    return sum + (m ? parseFloat(m[1].replace(",", ".")) : 0);
+  }, 0);
+}
 function playPool() { return reeds.filter(r => r.status === "testēšanā"); }
+
+function quickStatus(id, s) {
+  const r = reeds.find(x => x.reed_id === id); if (!r) return;
+  r.status = s;
+  r.log.push({ stamp: nowStamp(), rating: r.reitings_tagad || "", text: `Statuss: ${s} (no 🎡 riteņa)` });
+  persist(); render(); toast("Statuss: " + s + " ✓");
+}
 
 function spinWheel() {
   const pool = playPool();
   if (!pool.length) return;
-  // weighted pick: longer unplayed = heavier weight
-  const weights = pool.map(r => Math.pow(daysSincePlayed(r) + 1, 1.5));
+  // weighted pick: longer unplayed AND fewer accumulated minutes = heavier weight
+  const mins = pool.map(minutesPlayed);
+  const maxM = Math.max(...mins);
+  const weights = pool.map((r, i) => Math.pow(daysSincePlayed(r) + 1, 1.5) * (1 + Math.max(0, maxM - mins[i]) / 30));
   const total = weights.reduce((a, b) => a + b, 0);
   let roll = Math.random() * total, chosen = pool[0];
   for (let i = 0; i < pool.length; i++) { roll -= weights[i]; if (roll <= 0) { chosen = pool[i]; break; } }
@@ -869,14 +885,19 @@ function render() {
     app.innerHTML = `
     <div class="card">
       <b style="font-size:14px">🎡 Iespēlēšanās — play-in wheel</b>
-      <div class="sub" style="font-size:11px;margin-top:4px">Tikai mēles ar statusu <b>testēšanā</b>. Ritenis dod lielāku iespēju mēlēm, kuras nav spēlētas ilgāk — tās visvairāk jāiespēlē.</div>
+      <div class="sub" style="font-size:11px;margin-top:4px">Tikai mēles ar statusu <b>testēšanā</b>. Ritenis ņem vērā ABU: cik dienas mēle nav spēlēta <i>un</i> cik maz minūšu tā kopā sakrājusi — vismazāk iespēlētās nāk priekšā.</div>
       ${pool.length ? `
       <div id="wheelface" style="margin:18px auto 6px;width:180px;height:180px;border-radius:50%;background:#fffbeb;border:6px solid #fcd34d;display:flex;align-items:center;justify-content:center;font-size:42px;font-weight:800;color:#44403c">${playPick || pool[0].reed_id}</div>
       <div style="text-align:center"><button class="primary" onclick="spinWheel()">🎯 Griezt riņķi</button></div>
       ${chosen ? `
         <div class="card" style="margin-top:14px;background:#f0fdf4;border-color:#86efac">
           <b style="font-size:13px">${esc(chosen.reed_id)} — iespēlē un ieraksti!</b>
-          <div class="sub" style="font-size:11px;margin-top:4px">Pēdējā spēle: ${chosen.log && chosen.log.length ? esc(chosen.log.map(e=>e.stamp).sort().slice(-1)[0]) : "nav vēl"} (${daysSincePlayed(chosen) >= 99 ? "nezināms" : daysSincePlayed(chosen) + " dienas atpakaļ"}) · reitings tagad: ${esc(chosen.reitings_tagad || "–")}/10</div>
+          <div class="sub" style="font-size:11px;margin-top:4px">Pēdējā spēle: ${chosen.log && chosen.log.length ? esc(chosen.log.map(e=>e.stamp).sort().slice(-1)[0]) : "nav vēl"} (${daysSincePlayed(chosen) >= 99 ? "nezināms" : daysSincePlayed(chosen) + " dienas atpakaļ"}) · kopā iespēlēts: ${minutesPlayed(chosen)} min · reitings tagad: ${esc(chosen.reitings_tagad || "–")}/10</div>
+          ${daysSincePlayed(chosen) >= 14 ? `<div class="sub" style="font-size:11px;margin-top:6px;color:#b45309">⚠️ Šī mēle nav spēlēta ${daysSincePlayed(chosen) >= 99 ? "vēl nekad" : "jau " + daysSincePlayed(chosen) + " dienas"}. Ja tā ir laba — pārcel uz <b>aktīva</b>; ja nespēj tikt — apsver <b>salauzt</b> un sākt jaunu.</div>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <button class="chip" onclick="quickStatus('${esc(chosen.reed_id)}','aktīva')">✅ Laba — uz aktīva</button>
+            <button class="chip" onclick="quickStatus('${esc(chosen.reed_id)}','salauzta')">🚫 Salauzt</button>
+          </div>` : ""}
           <label style="margin-top:10px">Cik minūtes?</label>
           <input id="playmins" inputmode="numeric" placeholder="piem. 15" value="${esc(playMins)}" oninput="playMins=this.value" style="height:36px">
           <label style="margin-top:8px">Ko spēlēji?</label>
@@ -886,7 +907,7 @@ function render() {
           <button class="primary" style="margin-top:8px" onclick="playHarvest();savePlayIn()">💾 Ierakstīt iespēlēšanos</button>
           <button class="chip" style="margin-top:8px" onclick="playPick=null;playRating=0;render()">↩︎ Nevelkam — citu reizi</button>
         </div>` : ""}
-      ${!chosen && !playSpin ? `<div class="sub" style="font-size:11px;margin-top:10px;text-align:center">Iespējamās mēles: ${pool.map(r => `${esc(r.reed_id)} (${daysSincePlayed(r) >= 99 ? "nav spēlēta" : daysSincePlayed(r) + "d"})`).join(" · ")}</div>` : ""}
+      ${!chosen && !playSpin ? `<div class="sub" style="font-size:11px;margin-top:10px;text-align:center">Iespējamās mēles: ${pool.map(r => `${esc(r.reed_id)} (${daysSincePlayed(r) >= 99 ? "nav spēlēta" : daysSincePlayed(r) + "d"}, ${minutesPlayed(r)}min)`).join(" · ")}</div>` : ""}
       ` : "<p class='txt' style='margin-top:10px'>Nav mēļu ar statusu testēšanā. Ritenis strādā tikai ar testēšanā mēlēm — aktīvās un beigtās neparādās.</p>"}
     </div>`;
   }

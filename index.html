@@ -75,7 +75,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v35</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v36</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -106,6 +106,43 @@ let reeds = JSON.parse(localStorage.getItem(LS_KEY) || "null") || [
     { stamp:"2026-08-22", rating:null, text:"Labākā koncertmēle pagaidām. Stabila visa oktāva." } ] },
 ];
 const persist = () => localStorage.setItem(LS_KEY, JSON.stringify(reeds));
+
+// ---------------- backup export / import ----------------
+function exportBackup() {
+  const payload = { app: "reed-log", version: document.getElementById("ver")?.textContent || "", exported: new Date().toISOString(), reeds, cfg: { owner: cfg.owner, repo: cfg.repo, dir: cfg.dir, branch: cfg.branch } };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "reed-log-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast("💾 Rezerves kopija lejupielādēta");
+}
+function importBackup(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data.reeds) || !data.reeds.length) throw new Error("nav derīgs reed-log backups");
+      const mergeReed = (incoming) => {
+        const local = reeds.find(x => x.reed_id === incoming.reed_id);
+        if (!local) return incoming; // new reed: take it
+        // both exist: keep whichever has the newer last log stamp / edited marker
+        const stamp = r => r.log && r.log.length ? String(r.log[r.log.length - 1].stamp) : "";
+        return stamp(incoming) > stamp(local) ? incoming : local;
+      };
+      const merged = data.reeds.map(mergeReed);
+      // keep local-only reeds too
+      for (const l of reeds) if (!merged.find(x => x.reed_id === l.reed_id)) merged.push(l);
+      reeds = merged;
+      persist(); render();
+      toast("✅ Backups importēts (" + merged.length + " mēles, pa jaunākajiem ierakstiem apvienots)");
+    } catch (e) { toast("❌ Imports neizdevās: " + e.message); }
+  };
+  reader.readAsText(file);
+}
 
 // ---------------- helpers ----------------
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" }[c]));
@@ -1126,6 +1163,15 @@ function render() {
       <label>Branch</label><input id="cfg-branch" value="${esc(cfg.branch)}">
       <button class="primary" onclick="saveSettings()">Saglabāt</button>
       <button class="chip" style="margin-top:10px" onclick="doPull()">⬇️ Ielādēt mēles no GitHub</button>
+      <div class="card" style="margin-top:14px;background:#f0fdf4;border-color:#86efac"><b style="font-size:13px">💾 Rezerves kopija</b>
+        <div class="sub" style="font-size:11px;margin:4px 0 8px">Lejupielādē pilnu JSON kopiju (visas mēles + logi). Glabā kaut kur drošībā — no tās var atjaunot visu.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="primary" onclick="exportBackup()">⬇️ Lejupielādēt backup</button>
+          <button class="chip" onclick="document.getElementById('importfile').click()">⬆️ Importēt backup</button>
+          <input type="file" id="importfile" accept="application/json,.json" style="display:none" onchange="importBackup(this)">
+        </div>
+        <div class="sub" style="font-size:11px;margin-top:6px">Imports apvieno: katru mēli ņem no tās kopijas, kurai jaunākais log ieraksts. Token netiek aizskarts.</div>
+      </div>
       <button class="chip" style="margin-top:10px;color:#b91c1c" onclick="if(confirm('Dzēst visus lokālos datus?')){reeds=[];persist();render()}">Dzēst lokālos datus</button>
     </div>`;
   }

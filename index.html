@@ -74,7 +74,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v24</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v25</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -939,7 +939,7 @@ function render() {
         <input id="newcomment" placeholder="jauna piezīme — datums pieliksies automātiski" style="margin-top:10px" onkeydown="if(event.key==='Enter')addComment()">
         <button class="chip" style="margin-top:6px" onclick="addComment()">+ Pievienot piezīmi</button>
         <div style="margin-top:10px">
-        ${(r.comments || []).map((c,i) => `<div class="entry"><div class="stamp"><span>${esc(c.stamp)}</span><button class="chip" style="padding:0 8px;font-size:11px;color:#b91c1c" onclick="delComment(${i})">dzēst</button></div><div class="txt">${esc(c.text)}</div></div>`).join("") || "<p class='txt'>Vēl nav piezīmju.</p>"}
+        ${(r.comments || []).slice().sort((a,b) => String(b.stamp).localeCompare(String(a.stamp))).map((c,i) => `<div class="entry"><div class="stamp"><span>${esc(c.stamp)}</span><button class="chip" style="padding:0 8px;font-size:11px;color:#b91c1c" onclick="delComment(${r.comments.indexOf(c)})">dzēst</button></div><div class="txt">${esc(c.text)}</div></div>`).join("") || "<p class='txt'>Vēl nav piezīmju.</p>"}
         </div>
       </div>
 
@@ -949,7 +949,7 @@ function render() {
         <textarea id="editlog" rows="2" placeholder="kas notika ar šo mēli…" oninput="editDraft=this.value">${esc(editDraft)}</textarea>
         <button class="chip" style="margin-top:6px" onclick="addEntryToReed()">+ Pievienot ierakstu</button>
         <div style="margin-top:10px">
-        ${r.log.map((e,i) => `<div class="entry"><div class="stamp"><span>${esc(e.stamp)}</span><button class="chip" style="padding:0 8px;font-size:11px;color:#b91c1c" onclick="delEntry(${i})">dzēst</button></div>${e.rating ? `<span class="star">★ ${e.rating}/10</span>` : ""}<div class="txt">${esc(e.text)}</div></div>`).join("") || "<p class='txt'>Vēl nav ierakstu.</p>"}
+        ${r.log.slice().sort((a,b) => String(b.stamp).localeCompare(String(a.stamp))).map((e,i) => `<div class="entry"><div class="stamp"><span>${esc(e.stamp)}</span><button class="chip" style="padding:0 8px;font-size:11px;color:#b91c1c" onclick="delEntry(${r.log.indexOf(e)})">dzēst</button></div>${e.rating ? `<span class="star">★ ${e.rating}/10</span>` : ""}<div class="txt">${esc(e.text)}</div></div>`).join("") || "<p class='txt'>Vēl nav ierakstu.</p>"}
         </div>
       </div>`;
   }
@@ -1070,7 +1070,7 @@ function addComment() {
   const r = reeds.find(x => x.reed_id === editTarget);
   if (!r) return;
   r.comments = r.comments || [];
-  r.comments.push({ stamp: today(), text: t });
+  r.comments.push({ stamp: nowStamp(), text: t });
   persist(); render(); toast("Piezīme pievienota ✓");
 }
 function delComment(i) {

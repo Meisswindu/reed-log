@@ -75,7 +75,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v30</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v31</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -650,7 +650,7 @@ let logTarget = reeds.length ? reeds[0].reed_id : "";
 let newForm = null;
 let editTarget = null;
 let editDraft = ""; let entryRating = 0;
-let playPick = null; let playSpin = null; let playRating = 0; let playMins = ""; let playWhat = "";
+let playPick = null; let playSpin = null; let playRating = 0; let playMins = ""; let playWhat = ""; let pickMode = false;
 function playHarvest() { playMins = document.getElementById("playmins")?.value ?? playMins; playWhat = document.getElementById("playwhat")?.value ?? playWhat; }
 
 function daysSincePlayed(r) {
@@ -888,7 +888,8 @@ function render() {
       <div class="sub" style="font-size:11px;margin-top:4px">Tikai mēles ar statusu <b>testēšanā</b>. Ritenis ņem vērā ABU: cik dienas mēle nav spēlēta <i>un</i> cik maz minūšu tā kopā sakrājusi — vismazāk iespēlētās nāk priekšā.</div>
       ${pool.length ? `
       <div id="wheelface" style="margin:18px auto 6px;width:180px;height:180px;border-radius:50%;background:#fffbeb;border:6px solid #fcd34d;display:flex;align-items:center;justify-content:center;font-size:42px;font-weight:800;color:#44403c">${playPick || pool[0].reed_id}</div>
-      <div style="text-align:center"><button class="primary" onclick="spinWheel()">🎯 Griezt riņķi</button></div>
+      <div style="text-align:center;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="primary" onclick="spinWheel()">🎯 Griezt riņķi</button><button class="chip" onclick="pickMode=!pickMode;render()">✋ Izvēlēties pašam</button></div>
+      ${!chosen && pickMode && !playSpin ? `<div class="card" style="margin-top:12px;background:#eff6ff;border-color:#93c5fd"><b style="font-size:13px">Izvēlies mēli:</b><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${pool.map(r => `<button class="chip" onclick="playPick='${esc(r.reed_id)}';pickMode=false;render()">${esc(r.reed_id)} · ${daysSincePlayed(r) >= 99 ? "nav spēlēta" : daysSincePlayed(r) + "d"}, ${minutesPlayed(r)}min</button>`).join("")}</div></div>` : ""}
       ${chosen ? `
         <div class="card" style="margin-top:14px;background:#f0fdf4;border-color:#86efac">
           <b style="font-size:13px">${esc(chosen.reed_id)} — iespēlē un ieraksti!</b>
@@ -905,7 +906,7 @@ function render() {
           <label style="margin-top:8px">Reitings pēc iespēlēšanās (1–10)</label>
           <div class="rate">${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${playRating===n?"on":""}" onclick="playRating=${n};render()">${n}</button>`).join("")}</div>
           <button class="primary" style="margin-top:8px" onclick="playHarvest();savePlayIn()">💾 Ierakstīt iespēlēšanos</button>
-          <button class="chip" style="margin-top:8px" onclick="playPick=null;playRating=0;render()">↩︎ Nevelkam — citu reizi</button>
+          <button class="chip" style="margin-top:8px" onclick="playPick=null;playRating=0;pickMode=false;render()">↩︎ Nevelkam — citu reizi</button>
         </div>` : ""}
       ${!chosen && !playSpin ? `<div class="sub" style="font-size:11px;margin-top:10px;text-align:center">Iespējamās mēles: ${pool.map(r => `${esc(r.reed_id)} (${daysSincePlayed(r) >= 99 ? "nav spēlēta" : daysSincePlayed(r) + "d"}, ${minutesPlayed(r)}min)`).join(" · ")}</div>` : ""}
       ` : "<p class='txt' style='margin-top:10px'>Nav mēļu ar statusu testēšanā. Ritenis strādā tikai ar testēšanā mēlēm — aktīvās un beigtās neparādās.</p>"}

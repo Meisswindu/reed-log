@@ -74,7 +74,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v25</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v26</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -936,7 +936,7 @@ function render() {
 
       <div class="card">
         <b style="font-size:14px">💬 Piezīmes <span class="sub" style="font-size:11px">(datētas komentāras)</span></b>
-        <input id="newcomment" placeholder="jauna piezīme — datums pieliksies automātiski" style="margin-top:10px" onkeydown="if(event.key==='Enter')addComment()">
+        <input id="newcomment" placeholder="jauna piezīme — datums un laiks pieliksies automātiski" style="margin-top:10px" onkeydown="if(event.key==='Enter')addComment()">
         <button class="chip" style="margin-top:6px" onclick="addComment()">+ Pievienot piezīmi</button>
         <div style="margin-top:10px">
         ${(r.comments || []).slice().sort((a,b) => String(b.stamp).localeCompare(String(a.stamp))).map((c,i) => `<div class="entry"><div class="stamp"><span>${esc(c.stamp)}</span><button class="chip" style="padding:0 8px;font-size:11px;color:#b91c1c" onclick="delComment(${r.comments.indexOf(c)})">dzēst</button></div><div class="txt">${esc(c.text)}</div></div>`).join("") || "<p class='txt'>Vēl nav piezīmju.</p>"}
@@ -1094,7 +1094,7 @@ function saveEdit() {
   r.m = [...seen.values()].filter(row => String(row.left).trim() !== "" || String(row.right).trim() !== "");
   // harvest any uncommitted text so 💾 never discards what's on screen
   const pendingNote = (document.getElementById("newcomment")?.value || "").trim();
-  if (pendingNote) { r.comments = r.comments || []; r.comments.push({ stamp: today(), text: pendingNote }); toast("💬 Piezīme pievienota ✓"); }
+  if (pendingNote) { r.comments = r.comments || []; r.comments.push({ stamp: nowStamp(), text: pendingNote }); toast("💬 Piezīme pievienota ✓"); }
   const pendingLog = (typeof editDraft === "string" ? editDraft : "").trim() || (document.getElementById("editlog")?.value || "").trim();
   if (pendingLog) { r.log.push({ stamp: nowStamp(), rating: null, text: pendingLog }); editDraft = ""; toast("📝 Ieraksts pievienots ✓"); }
   // diff measurements against entry baseline → record change history (real changes only)

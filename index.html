@@ -75,7 +75,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v32</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v33</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -710,7 +710,7 @@ function savePlayIn() {
   const text = `🎡 Iespēlēšanās ${mins} min${what ? " — " + what : ""}\nSajūtas: ${feel}`;
   r.log.push({ stamp: nowStamp(), rating: playRating, text });
   r.reitings_tagad = playRating;
-  playPick = null; playRating = 0; playFeel = "";
+  playPick = null; playRating = 0; playFeel = ""; playMins = ""; playWhat = "";
   persist(); render(); toast("Iespēlēšanās ierakstīta ✓");
   pushToGithub(r, "atjaunināts");
 }

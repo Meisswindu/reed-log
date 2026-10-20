@@ -76,7 +76,7 @@
   <div class="tabs">
     <button id="t-sakums" onclick="go('sakums')">🏠 Sākums</button>
     <button id="t-log" onclick="go('log')">⚡ Log</button>
-    <button id="t-play" onclick="go('play')">🎡 Iespēlē</button>
+    <button id="t-play" onclick="go('play')">🎡 Break-in</button>
     <button id="t-new" onclick="go('new')">+ Jauna</button>
     <button id="t-lib" onclick="go('library')">Bibliotēka</button>
   </div>
@@ -85,7 +85,7 @@
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v45</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v46</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -207,7 +207,7 @@ function ratingHistory(r) { const h = []; if (r.reitings_sākumā) h.push(r.reit
 function statAvg(arr) { const a = arr.filter(x => typeof x === "number" && !isNaN(x)); return a.length ? a.reduce((s,v)=>s+v,0)/a.length : null; }
 function statsMinutesVsRating() {
   // per reed: total play-in minutes vs current rating — does playing-in improve reeds?
-  return reeds.filter(r => (r.log||[]).some(e => /iespēlēšanās/i.test(e.text||"")) && r.reitings_tagad !== "" && r.reitings_tagad != null)
+  return reeds.filter(r => (r.log||[]).some(e => /(iespēlēšanās|break-in)/i.test(e.text||"")) && r.reitings_tagad !== "" && r.reitings_tagad != null)
     .map(r => ({ id: r.reed_id, mins: minutesPlayed(r), rating: parseFloat(r.reitings_tagad) }))
     .filter(x => !isNaN(x.rating));
 }
@@ -236,8 +236,8 @@ function statsMinsByDay() {
   // play-in minutes per calendar day (last 14 days with data)
   const byDay = {};
   for (const r of reeds) for (const e of (r.log||[])) {
-    const m = /iespēlēšanās\s+([\d.,]+)\s*min/i.exec(e.text || "");
-    if (m) { const d = String(e.stamp).slice(0,10); byDay[d] = (byDay[d] || 0) + parseFloat(m[1].replace(",", ".")); }
+    const m = /(iespēlēšanās|break-in)\s+([\d.,]+)\s*min/i.exec(e.text || "");
+    if (m) { const d = String(e.stamp).slice(0,10); byDay[d] = (byDay[d] || 0) + parseFloat(m[2].replace(",", ".")); }
   }
   return Object.entries(byDay).sort((a,b) => a[0].localeCompare(b[0])).slice(-14);
 }
@@ -781,6 +781,8 @@ let newForm = null;
 let editTarget = null;
 let editDraft = ""; let entryRating = 0;
 let playPick = null; let playSpin = null; let playRating = 0; let playMins = ""; let playWhat = ""; let playFeel = ""; let pickMode = false; let playVia = "wheel"; // "wheel" | "manual" — marks how the reed was chosen
+let playSubs = {}; // optional sub-ratings: { articulation, intonation, tone, freedom } each "vāja" | "ok" | "laba"
+const SUB_DIMS = [["articulation", "Atsauksme (sākumi)"], ["intonation", "Intonācija"], ["tone", "Skaņa"], ["freedom", "Brīvums (resistance)"]];
 function playHarvest() { playMins = document.getElementById("playmins")?.value ?? playMins; playWhat = document.getElementById("playwhat")?.value ?? playWhat; playFeel = document.getElementById("playfeel")?.value ?? playFeel; }
 
 function daysSincePlayed(r) {
@@ -792,8 +794,8 @@ function daysSincePlayed(r) {
 function minutesPlayed(r) {
   if (!r.log || !r.log.length) return 0;
   return r.log.reduce((sum, e) => {
-    const m = /iespēlēšanās\s+([\d.,]+)\s*min/i.exec(e.text || "");
-    return sum + (m ? parseFloat(m[1].replace(",", ".")) : 0);
+    const m = /(iespēlēšanās|break-in)\s+([\d.,]+)\s*min/i.exec(e.text || "");
+    return sum + (m ? parseFloat(m[2].replace(",", ".")) : 0);
   }, 0);
 }
 function reedAgeStart(r) {
@@ -853,10 +855,11 @@ function savePlayIn() {
   if (!playRating) { toast("⭐ Ievērtē mēli 1–10 — reitings ir svarīgs datam!"); return; }
   if (!mins) { toast("⏱️ Ieraksti cik minūtes spēlēji!"); return; }
   if (!feel) { toast("📝 Ieraksti, kā mēle jutās — tas ir obligāts!"); return; }
-  const text = `${playVia === "manual" ? "✋" : "🎲"} Iespēlēšanās ${mins} min${what ? " — " + what : ""}\nSajūtas: ${feel}`;
+  const subsLine = Object.entries(playSubs).filter(([,v]) => v).map(([k,v]) => `${SUB_DIMS.find(d => d[0] === k)?.[1] || k}: ${v}`).join(" · ");
+  const text = `${playVia === "manual" ? "✋" : "🎲"} Break-in ${mins} min${what ? " — " + what : ""}\nSajūtas: ${feel}${subsLine ? "\nVērtējumi: " + subsLine : ""}`;
   r.log.push({ stamp: nowStamp(), rating: playRating, text });
   r.reitings_tagad = playRating;
-  playPick = null; playRating = 0; playFeel = ""; playMins = ""; playWhat = "";
+  playPick = null; playRating = 0; playFeel = ""; playMins = ""; playWhat = ""; playSubs = {};
   persist(); render(); toast("Iespēlēšanās ierakstīta ✓");
   pushToGithub(r, "atjaunināts");
 }
@@ -1048,7 +1051,7 @@ function render() {
     const chosen = reeds.find(x => x.reed_id === playPick);
     app.innerHTML = `
     <div class="card">
-      <b style="font-size:14px">🎡 Iespēlēšanās — play-in wheel</b>
+      <b style="font-size:14px">🎡 Break-in — play-in wheel</b>
       <div class="sub" style="font-size:11px;margin-top:4px">Tikai mēles ar statusu <b>testēšanā</b>. Ritenis ņem vērā ABU: cik dienas mēle nav spēlēta <i>un</i> cik maz minūšu tā kopā sakrājusi — vismazāk iespēlētās nāk priekšā.</div>
       ${pool.length ? `
       <div id="wheelface" style="margin:18px auto 6px;width:180px;height:180px;border-radius:50%;background:#fffbeb;border:6px solid #fcd34d;display:flex;align-items:center;justify-content:center;font-size:42px;font-weight:800;color:#44403c">${playPick || pool[0].reed_id}</div>
@@ -1069,9 +1072,14 @@ function render() {
           <input id="playwhat" placeholder="piem. Clark skalas, orķestra fragmenti…" value="${esc(playWhat)}" oninput="playWhat=this.value">
           <label style="margin-top:8px">Kā mēle jutās? <span style="color:#b45309">*</span></label>
           <input id="playfeel" placeholder="piem. stīva, bet E stabila; sākumā cenzas, pēc 10 min atslābst…" value="${esc(playFeel)}" oninput="playFeel=this.value">
-          <label style="margin-top:8px">Reitings pēc iespēlēšanās (1–10)</label>
+          <label style="margin-top:8px">Reitings pēc break-in (1–10)</label>
           <div class="rate">${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${playRating===n?"on":""}" onclick="playRating=${n};render()">${n}</button>`).join("")}</div>
-          <button class="primary" style="margin-top:8px" onclick="playHarvest();savePlayIn()">💾 Ierakstīt iespēlēšanos</button>
+          <label style="margin-top:10px;font-size:12px;color:#78716c">Sīkvērtējumi (opcionali — taisi tikai ja jūti)</label>
+          ${SUB_DIMS.map(([k, label]) => `<div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+            <span style="font-size:12px;flex:1">${label}</span>
+            ${["vāja","ok","laba"].map(v => `<button class="chip ${playSubs[k]===v?"on":""}" style="padding:4px 10px;font-size:11px" onclick="playSubs['${k}']=playSubs['${k}']==='${v}'?'':'${v}';render()">${v}</button>`).join("")}
+          </div>`).join("")}
+          <button class="primary" style="margin-top:8px" onclick="playHarvest();savePlayIn()">💾 Ierakstīt break-in</button>
           <button class="chip" style="margin-top:8px" onclick="playPick=null;playRating=0;pickMode=false;render()">↩︎ Nevelkam — citu reizi</button>
         </div>` : ""}
       ${!chosen && !playSpin ? `<div class="sub" style="font-size:11px;margin-top:10px;text-align:center">Iespējamās mēles: ${pool.map(r => `${esc(r.reed_id)} (${daysSincePlayed(r) >= 99 ? "nav spēlēta" : daysSincePlayed(r) + "d"}, ${minutesPlayed(r)}min)`).join(" · ")}</div>` : ""}
@@ -1102,7 +1110,7 @@ function render() {
           <span style="font-size:12px;font-weight:700;width:36px;text-align:right;color:${x.rating >= 7 ? "#16a34a" : x.rating >= 5 ? "#b45309" : "#b91c1c"}">${x.rating}</span>
         </div>`).join("")}
       </div>
-      <div class="sub" style="font-size:11px;margin-top:6px">Sarkans &lt;5 · dzeltens 5–6 · zaļš ≥7 reitings. (Jo vairāk ierakstu, jo skaidrāk redzēsi, vai ilgāka iespēlēšanās dod labāku reitingu.)</div>` : "<p class='txt' style='margin-top:8px'>Vēl nav pietiekami daudz 🎡 ierakstu ar minūtēm un reitingu.</p>"}
+      <div class="sub" style="font-size:11px;margin-top:6px">Sarkans &lt;5 · dzeltens 5–6 · zaļš ≥7 reitings. (Jo vairāk ierakstu, jo skaidrāk redzēsi, vai ilgāks break-in dod labāku reitingu.)</div>` : "<p class='txt' style='margin-top:8px'>Vēl nav pietiekami daudz 🎡 ierakstu ar minūtēm un reitingu.</p>"}
     </div>
     <div class="card"><b style="font-size:13px">📈 Grupu vidējie reitingi</b>
       ${[["Izgatavotājs", byMaker], ["Metode", byMetode], ["Shape", byShape], ["Koka cietība", byHardness], ["Koka ražotājs", byCane]].map(([title, groups]) => groups.length ? `

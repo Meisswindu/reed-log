@@ -42,7 +42,8 @@
   .chip.on { background:#f59e0b; color:#fff; border-color:#b45309; }
   .primary { width:100%; padding:12px; background:#f59e0b; color:#fff; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; margin-top:12px; }
   .primary:disabled { background:#d6d3d1; cursor:default; }
-  .pill { font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid; }
+  .pill { font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid; display:inline-block; max-width:100%; }
+  .chips .pill { flex:0 1 auto; min-width:0; }
   .s-testēšanā { background:#dbeafe; color:#1e40af; border-color:#93c5fd; }
   .s-aktīva { background:#dcfce7; color:#166534; border-color:#86efac; }
   .s-rezerve { background:#fef3c7; color:#92400e; border-color:#fcd34d; }
@@ -81,7 +82,7 @@
     <button id="t-stats" onclick="go('stats')">📊</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v42</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v43</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -953,7 +954,7 @@ function render() {
       <button class="bigbtn" onclick="go('new')"><span class="ico">🎵</span><div><b>Jauna mēle</b><div class="desc">Reģistrē tikko taisītu vai saņemtu mēli</div></div></button>
       <button class="bigbtn" onclick="go('library')"><span class="ico">🔎</span><div><b>Meklēt veco</b><div class="desc">Bibliotēka, reitingi un līdzīgās mēles</div></div></button>
       <button class="bigbtn" style="padding:14px" onclick="go('log')"><span class="ico" style="font-size:22px">⚡</span><div><b>Ātrais log</b><div class="desc">Pieraksti notikumu vai pārreitē mēli (2 tap)</div></div></button>
-      ${rot.length ? `<div class="card" style="background:#fffbeb;border-color:#fcd34d"><b style="font-size:12px">Tagad rotācijā:</b><div class="chips">${rot.map(r => `<span class="pill s-${esc(r.status)}">${esc(r.reed_id)} · ${esc(r.reitings_tagad || "–")}/10</span>`).join("")}</div></div>` : ""}
+      ${rot.length ? `<div class="card" style="background:#fffbeb;border-color:#fcd34d"><b style="font-size:12px">Tagad rotācijā:</b><div class="chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${rot.map(r => `<span class="pill s-${esc(r.status)}">${esc(r.reed_id)} · ${esc(r.reitings_tagad || "–")}/10</span>`).join("")}</div></div>` : ""}
       <div class="card"><b style="font-size:13px">⚙️ GitHub savienojums</b>
         <p class="txt">${cfg.token ? "Token ievadīts — ieraksti tiks saglabāti tavā repo." : "Bez token ieraksti saglabājas tikai šajā pārlūkā. Ievadi token, lai rakstītu straight uz Obsidian vault."}</p>
         <div style="display:flex;gap:8px"><input id="cfg-token" type="password" placeholder="GitHub token (fine-grained)" value="${esc(cfg.token)}" style="flex:1"><button class="chip" onclick="saveToken()">Saglabāt</button></div>

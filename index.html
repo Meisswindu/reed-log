@@ -75,7 +75,7 @@
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v36</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v37</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -614,10 +614,18 @@ async function pullFromGithub() {
     }));
     batch.filter(Boolean).forEach(r => out.push(r));
   }
-  // MERGE, not replace: keep local reeds that aren't on GitHub yet; GitHub wins on conflicts
-  const local = reeds.filter(r => !out.some(g => (g._file || g.reed_id + ".md") === (r._file || r.reed_id + ".md")));
+  // MERGE by newest log stamp: whichever copy (local vs GitHub) was edited last wins, per reed
+  const stampOf = r => r.log && r.log.length ? String(r.log[r.log.length-1].stamp) : "";
+  let updated = 0;
+  const local = reeds.filter(r => {
+    const g = out.find(g => (g._file || g.reed_id + ".md") === (r._file || r.reed_id + ".md"));
+    if (!g) return true; // local-only: keep
+    if (stampOf(g) > stampOf(r)) updated++; // GitHub newer: GitHub copy replaces local
+    return false;
+  });
   reeds = [...out, ...local].sort((a,b) => a.reed_id.localeCompare(b.reed_id));
   persist();
+  return updated;
 }
 
 function parseReedMarkdown(text, fallbackId) {
@@ -776,9 +784,21 @@ let wireTo = "";
 
 function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.style.display = "block"; setTimeout(() => t.style.display = "none", 2500); }
 function syncFail(msg) { const b = document.getElementById("syncbar"); b.textContent = "⚠️ Nav saglabāts GitHub: " + msg + " — spied šeit, lai aizvērtu"; b.style.display = "block"; }
-function pushToGithub(r, what) {
+async function pushToGithub(r, what) {
   if (!cfg.token) return;
-  commitFile(`${cfg.dir}/${r._file || r.reed_id + ".md"}`, reedToMarkdown(r), `reed log: ${r.reed_id} ${what}`)
+  const path = `${cfg.dir}/${r._file || r.reed_id + ".md"}`;
+  // stale guard: if the GitHub copy is newer than the phone's, warn before overwriting
+  try {
+    const blob = await gh(`/repos/${cfg.owner}/${cfg.repo}/contents/${encPath(path)}?ref=${encodeURIComponent(cfg.branch)}`);
+    const remote = decodeURIComponent(escape(atob(blob.content)));
+    const stamps = t => (t.match(/\d{4}-\d{2}-\d{2}( \d{2}:\d{2})?/g) || []).sort().slice(-1)[0] || "";
+    const local = r.log && r.log.length ? String(r.log[r.log.length-1].stamp) : "";
+    if (stamps(remote) > local) {
+      const ok = confirm(`⚠️ GitHub kopija ${r.reed_id}.md ir JAUNĀKA par telefona kopiju.\n(Kopā ārpus telefona kāds ir labojis — piem. Obsidian vai pārlūks.)\n\nTurpināt un pārrakstīt GitHub? (OK = jā, Atcelt = nesaglabā un vispirms spied ⬇️ Ielādēt)`);
+      if (!ok) { toast("⏸️ Saglabāšana atcelta — vispirms ielādē no GitHub"); return; }
+    }
+  } catch (e) { /* file not on GitHub yet: normal, proceed */ }
+  commitFile(path, reedToMarkdown(r), `reed log: ${r.reed_id} ${what}`)
     .then(() => toast("Saglabāts GitHub ✓"))
     .catch(e => syncFail(e.message));
 }
@@ -1316,7 +1336,7 @@ function saveSettings() {
   saveCfg(); toast("Saglabāts ✓"); view = "sakums"; render();
 }
 async function doPull() {
-  try { toast("Ielādēju…"); await pullFromGithub(); toast(`Ielādētas ${reeds.length} mēles ✓`); render(); }
+  try { toast("Ielādēju…"); const up = await pullFromGithub(); toast(`Ielādētas ${reeds.length} mēles ✓${up ? " · " + up + " atjauninātas no GitHub" : " · telefona kopijas bija jaunākās"}`); render(); }
   catch (e) { syncFail(e.message); }
 }
 

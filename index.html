@@ -69,12 +69,13 @@
   <div class="tabs">
     <button id="t-sakums" onclick="go('sakums')">🏠 Sākums</button>
     <button id="t-log" onclick="go('log')">⚡ Log</button>
+    <button id="t-play" onclick="go('play')">🎡 Iespēlē</button>
     <button id="t-new" onclick="go('new')">+ Jauna</button>
     <button id="t-lib" onclick="go('library')">Bibliotēka</button>
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v28</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v29</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -649,6 +650,51 @@ let logTarget = reeds.length ? reeds[0].reed_id : "";
 let newForm = null;
 let editTarget = null;
 let editDraft = ""; let entryRating = 0;
+let playPick = null; let playSpin = null; let playRating = 0; let playMins = ""; let playWhat = "";
+function playHarvest() { playMins = document.getElementById("playmins")?.value ?? playMins; playWhat = document.getElementById("playwhat")?.value ?? playWhat; }
+
+function daysSincePlayed(r) {
+  if (!r.log || !r.log.length) return 99;
+  const last = r.log.map(e => e.stamp).sort().slice(-1)[0];
+  const days = (Date.now() - new Date(last.slice(0, 10)).getTime()) / 86400000;
+  return Math.max(0, Math.round(days));
+}
+function playPool() { return reeds.filter(r => r.status === "testēšanā"); }
+
+function spinWheel() {
+  const pool = playPool();
+  if (!pool.length) return;
+  // weighted pick: longer unplayed = heavier weight
+  const weights = pool.map(r => Math.pow(daysSincePlayed(r) + 1, 1.5));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let roll = Math.random() * total, chosen = pool[0];
+  for (let i = 0; i < pool.length; i++) { roll -= weights[i]; if (roll <= 0) { chosen = pool[i]; break; } }
+  // animation: flash through reeds, decelerate, land on chosen
+  let i = 0, delay = 50;
+  const el = document.getElementById("wheelface");
+  const tick = () => {
+    el.textContent = pool[i % pool.length].reed_id;
+    i++;
+    if (delay < 320) { delay += 14; playSpin = setTimeout(tick, delay); }
+    else { playPick = chosen.reed_id; clearTimeout(playSpin); playSpin = null; render(); }
+  };
+  playPick = null; tick();
+}
+
+function savePlayIn() {
+  const r = reeds.find(x => x.reed_id === playPick);
+  if (!r) return;
+  const mins = (document.getElementById("playmins")?.value || "").trim();
+  const what = (document.getElementById("playwhat")?.value || "").trim();
+  if (!playRating) { toast("⭐ Ievērtē mēli 1–10 — reitings ir svarīgs datam!"); return; }
+  if (!mins) { toast("⏱️ Ieraksti cik minūtes spēlēji!"); return; }
+  const text = `🎡 Iespēlēšanās ${mins} min${what ? " — " + what : ""}`;
+  r.log.push({ stamp: nowStamp(), rating: playRating, text });
+  r.reitings_tagad = playRating;
+  playPick = null; playRating = 0;
+  persist(); render(); toast("Iespēlēšanās ierakstīta ✓");
+  pushToGithub(r, "atjaunināts");
+}
 let editBaseline = null;
 let editBaselineE = null;
 let editBaselineF = null;
@@ -730,7 +776,7 @@ function similarity(a, b) {
 
 function render() {
   document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("on"));
-  const tabId = { sakums:"t-sakums", log:"t-log", new:"t-new", library:"t-lib", diag:"t-diag", settings:"t-sakums" }[view] || "t-sakums";
+  const tabId = { sakums:"t-sakums", log:"t-log", play:"t-play", new:"t-new", library:"t-lib", diag:"t-diag", settings:"t-sakums" }[view] || "t-sakums";
   document.getElementById(tabId).classList.add("on");
   const app = document.getElementById("app");
   document.getElementById("subtitle").textContent = `Fagots/Mēles/Reeds · ${reeds.length} mēles` + (cfg.token ? " · 🔗 GitHub" : " · lokāli");
@@ -817,6 +863,33 @@ function render() {
       <div class="card"><b id="prevfile" style="font-size:13px">Priekšskatījums: ${esc(cfg.dir)}/${esc(f.reed_id)}.md</b><pre id="prev">${esc(reedToMarkdown(f))}</pre></div>`;
   }
 
+  else if (view === "play") {
+    const pool = playPool();
+    const chosen = reeds.find(x => x.reed_id === playPick);
+    app.innerHTML = `
+    <div class="card">
+      <b style="font-size:14px">🎡 Iespēlēšanās — play-in wheel</b>
+      <div class="sub" style="font-size:11px;margin-top:4px">Tikai mēles ar statusu <b>testēšanā</b>. Ritenis dod lielāku iespēju mēlēm, kuras nav spēlētas ilgāk — tās visvairāk jāiespēlē.</div>
+      ${pool.length ? `
+      <div id="wheelface" style="margin:18px auto 6px;width:180px;height:180px;border-radius:50%;background:#fffbeb;border:6px solid #fcd34d;display:flex;align-items:center;justify-content:center;font-size:42px;font-weight:800;color:#44403c">${playPick || pool[0].reed_id}</div>
+      <div style="text-align:center"><button class="primary" onclick="spinWheel()">🎯 Griezt riņķi</button></div>
+      ${chosen ? `
+        <div class="card" style="margin-top:14px;background:#f0fdf4;border-color:#86efac">
+          <b style="font-size:13px">${esc(chosen.reed_id)} — iespēlē un ieraksti!</b>
+          <div class="sub" style="font-size:11px;margin-top:4px">Pēdējā spēle: ${chosen.log && chosen.log.length ? esc(chosen.log.map(e=>e.stamp).sort().slice(-1)[0]) : "nav vēl"} (${daysSincePlayed(chosen) >= 99 ? "nezināms" : daysSincePlayed(chosen) + " dienas atpakaļ"}) · reitings tagad: ${esc(chosen.reitings_tagad || "–")}/10</div>
+          <label style="margin-top:10px">Cik minūtes?</label>
+          <input id="playmins" inputmode="numeric" placeholder="piem. 15" value="${esc(playMins)}" oninput="playMins=this.value" style="height:36px">
+          <label style="margin-top:8px">Ko spēlēji?</label>
+          <input id="playwhat" placeholder="piem. Clark skalas, orķestra fragmenti…" value="${esc(playWhat)}" oninput="playWhat=this.value">
+          <label style="margin-top:8px">Reitings pēc iespēlēšanās (1–10)</label>
+          <div class="rate">${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${playRating===n?"on":""}" onclick="playRating=${n};render()">${n}</button>`).join("")}</div>
+          <button class="primary" style="margin-top:8px" onclick="playHarvest();savePlayIn()">💾 Ierakstīt iespēlēšanos</button>
+          <button class="chip" style="margin-top:8px" onclick="playPick=null;playRating=0;render()">↩︎ Nevelkam — citu reizi</button>
+        </div>` : ""}
+      ${!chosen && !playSpin ? `<div class="sub" style="font-size:11px;margin-top:10px;text-align:center">Iespējamās mēles: ${pool.map(r => `${esc(r.reed_id)} (${daysSincePlayed(r) >= 99 ? "nav spēlēta" : daysSincePlayed(r) + "d"})`).join(" · ")}</div>` : ""}
+      ` : "<p class='txt' style='margin-top:10px'>Nav mēļu ar statusu testēšanā. Ritenis strādā tikai ar testēšanā mēlēm — aktīvās un beigtās neparādās.</p>"}
+    </div>`;
+  }
   else if (view === "library") {
     const cs = corrStats();
     const anyCorrData = cs.mm4.unstable || cs.mm4.stable || cs.mm16.unstable || cs.mm16.stable;

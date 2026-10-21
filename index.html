@@ -85,7 +85,7 @@
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v46</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v47</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -782,6 +782,7 @@ let editTarget = null;
 let editDraft = ""; let entryRating = 0;
 let playPick = null; let playSpin = null; let playRating = 0; let playMins = ""; let playWhat = ""; let playFeel = ""; let pickMode = false; let playVia = "wheel"; // "wheel" | "manual" — marks how the reed was chosen
 let playSubs = {}; // optional sub-ratings: { articulation, intonation, tone, freedom } each "vāja" | "ok" | "laba"
+let playE = { nest: "", pak: 0 }; // optional E-stability from this session: "" = not evaluated, "jā" = nestabila, "nē" = stabila, pak 1–10
 const SUB_DIMS = [["articulation", "Atsauksme (sākumi)"], ["intonation", "Intonācija"], ["tone", "Skaņa"], ["freedom", "Brīvums (resistance)"]];
 function playHarvest() { playMins = document.getElementById("playmins")?.value ?? playMins; playWhat = document.getElementById("playwhat")?.value ?? playWhat; playFeel = document.getElementById("playfeel")?.value ?? playFeel; }
 
@@ -856,10 +857,20 @@ function savePlayIn() {
   if (!mins) { toast("⏱️ Ieraksti cik minūtes spēlēji!"); return; }
   if (!feel) { toast("📝 Ieraksti, kā mēle jutās — tas ir obligāts!"); return; }
   const subsLine = Object.entries(playSubs).filter(([,v]) => v).map(([k,v]) => `${SUB_DIMS.find(d => d[0] === k)?.[1] || k}: ${v}`).join(" · ");
-  const text = `${playVia === "manual" ? "✋" : "🎲"} Break-in ${mins} min${what ? " — " + what : ""}\nSajūtas: ${feel}${subsLine ? "\nVērtējumi: " + subsLine : ""}`;
+  const eLine = playE.nest ? (playE.nest === "jā" ? `E nestabils${playE.pak ? " (" + playE.pak + "/10)" : ""}` : "E stabils") : "";
+  const text = `${playVia === "manual" ? "✋" : "🎲"} Break-in ${mins} min${what ? " — " + what : ""}\nSajūtas: ${feel}${subsLine ? "\nVērtējumi: " + subsLine : ""}${eLine ? "\nE stabilitāte: " + eLine : ""}`;
   r.log.push({ stamp: nowStamp(), rating: playRating, text });
   r.reitings_tagad = playRating;
-  playPick = null; playRating = 0; playFeel = ""; playMins = ""; playWhat = ""; playSubs = {};
+  // sync E-stability fields + history (same as edit view's e_log)
+  if (playE.nest) {
+    const eDesc = (nest, pak) => nest === "jā" ? `nestabils${pak ? " (" + pak + "/10)" : ""}` : "stabils";
+    const before = eDesc(r.e_nestabila || "", r.e_pakape || "");
+    const after = playE.nest === "jā" ? eDesc("jā", playE.pak || "") : eDesc("nē", "");
+    r.e_nestabila = playE.nest;
+    r.e_pakape = playE.nest === "jā" ? (playE.pak || "") : "";
+    if (before !== after) { r.e_log = r.e_log || []; r.e_log.push({ stamp: nowStamp(), from: before, to: after }); toast("🎵 E stabilitāte atjaunināta ✓"); }
+  }
+  playPick = null; playRating = 0; playFeel = ""; playMins = ""; playWhat = ""; playSubs = {}; playE = { nest: "", pak: 0 };
   persist(); render(); toast("Iespēlēšanās ierakstīta ✓");
   pushToGithub(r, "atjaunināts");
 }
@@ -1079,6 +1090,16 @@ function render() {
             <span style="font-size:12px;flex:1">${label}</span>
             ${["vāja","ok","laba"].map(v => `<button class="chip ${playSubs[k]===v?"on":""}" style="padding:4px 10px;font-size:11px" onclick="playSubs['${k}']=playSubs['${k}']==='${v}'?'':'${v}';render()">${v}</button>`).join("")}
           </div>`).join("")}
+          <label style="margin-top:10px;font-size:12px;color:#78716c">E stabilitāte (atjaunina arī mēles E laukus)</label>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+            <span style="font-size:12px;width:80px">E šodien:</span>
+            <button class="chip ${playE.nest==="nē"?"on":""}" style="padding:4px 10px;font-size:11px" onclick="playE.nest=playE.nest==='nē'?'':'nē';if(playE.nest!=='jā')playE.pak=0;render()">✅ stabila</button>
+            <button class="chip ${playE.nest==="jā"?"on":""}" style="padding:4px 10px;font-size:11px" onclick="playE.nest=playE.nest==='jā'?'':'jā';render()">⚠️ nestabila</button>
+          </div>
+          ${playE.nest === "jā" ? `<div style="display:flex;align-items:center;gap:4px;margin-top:6px">
+            <span style="font-size:12px;width:80px">pakāpe 1–10:</span>
+            ${Array.from({length:10},(_,i)=>i+1).map(n => `<button class="${playE.pak===n?"on":""}" style="padding:4px 0;flex:1;border:1px solid #d6d3d1;border-radius:6px;background:${playE.pak===n?"#f59e0b":"#fff"};font-size:11px;font-weight:600;cursor:pointer" onclick="playE.pak=${n};render()">${n}</button>`).join("")}
+          </div>` : ""}
           <button class="primary" style="margin-top:8px" onclick="playHarvest();savePlayIn()">💾 Ierakstīt break-in</button>
           <button class="chip" style="margin-top:8px" onclick="playPick=null;playRating=0;pickMode=false;render()">↩︎ Nevelkam — citu reizi</button>
         </div>` : ""}

@@ -85,7 +85,7 @@
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v47</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v48</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -176,6 +176,8 @@ function reedToMarkdown(r) {
     `reed_id: "${r.reed_id}"`,
     `datums: ${r.datums}`,
     `maker: "${r.maker || "Pauls"}"`,
+    r.tube_length && `tube_length: "${r.tube_length}"`,
+    r.blade_length && `blade_length: "${r.blade_length}"`,
     r.shape && `shape: "${r.shape}"`,
     r.cane_manufacturer && `cane_manufacturer: ${r.cane_manufacturer}`,
     r.metode && `metode: ${r.metode}`,
@@ -296,7 +298,7 @@ function profilePlot(r) {
     </div>
   </div>`;
 }
-const FIELD_LABELS = { wire_1: "1. drāts", wire_2: "2. drāts", wire_3: "3. drāts", status: "statuss", reitings_tagad: "reitings", reitings_sakumā: "reitings sākumā", metode: "metode", tip_profiler_setting: "TP iestatījums", maker: "izgatavotājs" };
+const FIELD_LABELS = { wire_1: "1. drāts", wire_2: "2. drāts", wire_3: "3. drāts", status: "statuss", reitings_tagad: "reitings", reitings_sakumā: "reitings sākumā", metode: "metode", tip_profiler_setting: "TP iestatījums", maker: "izgatavotājs", tube_length: "caurulītes garums", blade_length: "plāksnes garums" };
 let diagReed = null; let diagSym = {}; let zoneShow = false; let zoneSel = null; let diagMode = "symptoms"; let crow = {};
 
 const ZONES = {
@@ -741,7 +743,7 @@ function parseReedMarkdown(text, fallbackId) {
   });
   const reed = {
     reed_id: fm.reed_id || fallbackId, datums: fm.datums || today(),
-    shape: fm.shape || "", maker: fm.maker || "", cane_manufacturer: fm.cane_manufacturer || "", metode: fm.metode || "", cane_hardness: fm.cane_hardness || "",
+    shape: fm.shape || "", maker: fm.maker || "", tube_length: fm.tube_length || "", blade_length: fm.blade_length || "", cane_manufacturer: fm.cane_manufacturer || "", metode: fm.metode || "", cane_hardness: fm.cane_hardness || "",
     wire_gauge: fm.wire_gauge || "", wire_1: fm.wire_1 || "", wire_2: fm.wire_2 || "", wire_3: fm.wire_3 || "", tip_profiler_setting: fm.tip_profiler_setting || "",
     status: fm.status || "testēšanā", saistīts_ar: fm.saistīts_ar || "",
     reitings_sākumā: fm.reitings_sākumā || "", reitings_tagad: fm.reitings_tagad || "",
@@ -771,7 +773,7 @@ function libFiltered() {
     if (libFilter.e === "nestabila" && r.e_nestabila !== "jā") return false;
     if (libFilter.e === "stabila" && r.e_nestabila === "jā") return false;
     if (!q) return true;
-    const hay = [r.reed_id, r.cane_manufacturer, r.metode, r.shape, r.status, r.tip_profiler_setting, r.cane_hardness, r.maker, r.wire_1, r.wire_2, r.wire_3, ...(r.log||[]).map(e=>e.text), ...(r.comments||[]).map(c=>c.text)].filter(Boolean).join(" ").toLowerCase();
+    const hay = [r.reed_id, r.cane_manufacturer, r.metode, r.shape, r.status, r.tip_profiler_setting, r.cane_hardness, r.maker, r.tube_length, r.blade_length, r.wire_1, r.wire_2, r.wire_3, ...(r.log||[]).map(e=>e.text), ...(r.comments||[]).map(c=>c.text)].filter(Boolean).join(" ").toLowerCase();
     return hay.includes(q);
   });
 }
@@ -907,7 +909,7 @@ function go(v) {
 }
 
 function startNew() {
-  newForm = { reed_id: "…", datums: today(), shape: "9", maker: "Pauls", cane_manufacturer: "", metode: "", cane_hardness: "", wire_gauge: "", wire_1: "", wire_2: "", wire_3: "", tip_profiler_setting: "", status: "testēšanā", saistīts_ar: "", reitings_sākumā: "", reitings_tagad: "", e_nestabila: "", e_pakape: "", m: [], log: [] };
+  newForm = { reed_id: "…", datums: today(), shape: "9", maker: "Pauls", cane_manufacturer: "", metode: "", cane_hardness: "", tube_length: "", blade_length: "", wire_gauge: "", wire_1: "", wire_2: "", wire_3: "", tip_profiler_setting: "", status: "testēšanā", saistīts_ar: "", reitings_sākumā: "", reitings_tagad: "", e_nestabila: "", e_pakape: "", m: [], log: [] };
 }
 
 function setForm(k, v) {
@@ -1024,6 +1026,8 @@ function render() {
           <datalist id="makerlist">${MAKERS.map(mk => `<option value="${mk}">`).join("")}</datalist></div>
           <div><label>reed_id (auto)</label><input value="${esc(f.reed_id)}" onchange="newForm.reed_id=this.value;render()"></div>
           <div><label>datums</label><input type="date" value="${esc(f.datums)}" onchange="newForm.datums=this.value"></div>
+          <div><label>caurulītes garums (mm)</label><input inputmode="decimal" placeholder="piem. 27" value="${esc(f.tube_length)}" oninput="newForm.tube_length=this.value"></div>
+          <div><label>plāksnes garums (mm)</label><input inputmode="decimal" placeholder="piem. 28" value="${esc(f.blade_length)}" oninput="newForm.blade_length=this.value"></div>
           <div><label>shape</label><input placeholder="9" value="${esc(f.shape)}" oninput="newForm.shape=this.value"></div>
           <div><label>cane_hardness</label><input inputmode="decimal" placeholder="piem. 10.5" value="${esc(f.cane_hardness)}" oninput="newForm.cane_hardness=this.value"></div>
           <div><label>1. drāts</label><input placeholder="copper / 6 / 7" value="${esc(f.wire_1)}" oninput="newForm.wire_1=this.value">${wireChipsNew(1)}</div>
@@ -1206,7 +1210,7 @@ function render() {
               <span class="pill s-${esc(r.status)}">${esc(r.status)}</span>
             </div>
           </div>
-          <div class="chips">${[r.maker && r.maker !== "Pauls" ? "izgatavotājs: " + r.maker : "", r.cane_manufacturer, r.metode && "metode: "+r.metode, r.shape && "shape "+r.shape, r.tip_profiler_setting && "TP "+r.tip_profiler_setting, r.e_nestabila==="jā" && "E nestabils"+(r.e_pakape ? " "+r.e_pakape+"/10" : ""), [r.wire_1,r.wire_2,r.wire_3].filter(Boolean).length && "drāts: "+[r.wire_1,r.wire_2,r.wire_3].filter(Boolean).join(" · ")].filter(Boolean).map(v => `<button class="mchip" onclick="selectedMatch=reeds.find(x=>x.reed_id==='${esc(r.reed_id)}');render()">${esc(v)}</button>`).join("")}</div>
+          <div class="chips">${[r.maker && r.maker !== "Pauls" ? "izgatavotājs: " + r.maker : "", r.cane_manufacturer, r.tube_length && "caurule " + r.tube_length + "mm", r.blade_length && "plāksne " + r.blade_length + "mm", r.metode && "metode: "+r.metode, r.shape && "shape "+r.shape, r.tip_profiler_setting && "TP "+r.tip_profiler_setting, r.e_nestabila==="jā" && "E nestabils"+(r.e_pakape ? " "+r.e_pakape+"/10" : ""), [r.wire_1,r.wire_2,r.wire_3].filter(Boolean).length && "drāts: "+[r.wire_1,r.wire_2,r.wire_3].filter(Boolean).join(" · ")].filter(Boolean).map(v => `<button class="mchip" onclick="selectedMatch=reeds.find(x=>x.reed_id==='${esc(r.reed_id)}');render()">${esc(v)}</button>`).join("")}</div>
           <div class="txt">reitings: ${hist.map((v,i) => `<span style="${i===hist.length-1?"color:#b45309;font-weight:700":""}">${v}${i<hist.length-1?" → ":""}</span>`).join("")}${hist.length?"":"–"}${hist.length?"/10":""} ${sparkline(hist)}</div>
           ${r.log.length ? `<div class="txt" style="font-style:italic;margin-top:6px;color:#78716c">"${esc(r.log[r.log.length-1].text).slice(0,120)}"</div>` : ""}
         </div>`;
@@ -1283,6 +1287,10 @@ function render() {
             <label style="margin:8px 0 2px">izgatavotājs (maker)</label>
             <input list="makerlist2" value="${esc(r.maker || "Pauls")}" onchange="editField('maker',this.value)">
             <datalist id="makerlist2">${MAKERS.map(mk => `<option value="${mk}">`).join("")}</datalist>
+            <label style="margin:8px 0 2px">caurulītes garums (mm)</label>
+            <input inputmode="decimal" value="${esc(r.tube_length || "")}" onchange="editField('tube_length',this.value)">
+            <label style="margin:8px 0 2px">plāksnes garums (mm)</label>
+            <input inputmode="decimal" value="${esc(r.blade_length || "")}" onchange="editField('blade_length',this.value)">
           </div>
           ${field("cane_hardness","cane_hardness","piem. 10.5")}
           ${field("wire_1","1. drāts","copper / 6 / 7")}
@@ -1459,7 +1467,7 @@ function enterEdit(id) {
   const r = reeds.find(x => x.reed_id === id);
   editBaseline = r ? JSON.parse(JSON.stringify(r.m)) : [];
   editBaselineE = r ? { nest: r.e_nestabila, pak: r.e_pakape } : {};
-  editBaselineF = r ? { wire_1: r.wire_1 || "", wire_2: r.wire_2 || "", wire_3: r.wire_3 || "", status: r.status || "", reitings_tagad: String(r.reitings_tagad ?? ""), reitings_sakumā: String(r.reitings_sākumā ?? ""), metode: r.metode || "", tip_profiler_setting: r.tip_profiler_setting || "", maker: r.maker || "Pauls" } : {};
+  editBaselineF = r ? { wire_1: r.wire_1 || "", wire_2: r.wire_2 || "", wire_3: r.wire_3 || "", status: r.status || "", reitings_tagad: String(r.reitings_tagad ?? ""), reitings_sakumā: String(r.reitings_sākumā ?? ""), metode: r.metode || "", tip_profiler_setting: r.tip_profiler_setting || "", maker: r.maker || "Pauls", tube_length: r.tube_length || "", blade_length: r.blade_length || "" } : {};
   view = "edit"; render();
 }
 function saveEdit() {

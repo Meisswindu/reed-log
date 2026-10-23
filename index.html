@@ -82,10 +82,11 @@
   </div>
   <div class="tabs second">
     <button id="t-diag" onclick="go('diag')">🩺 Diagnoze</button>
+    <button id="t-wiz" onclick="go('vednis')">🎯 Vednis</button>
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v49</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v50</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -300,6 +301,8 @@ function profilePlot(r) {
 }
 const FIELD_LABELS = { wire_1: "1. drāts", wire_2: "2. drāts", wire_3: "3. drāts", status: "statuss", reitings_tagad: "reitings", reitings_sakumā: "reitings sākumā", metode: "metode", tip_profiler_setting: "TP iestatījums", maker: "izgatavotājs", tube_length: "caurulītes garums", blade_length: "plāksnes garums" };
 let diagReed = null; let diagSym = {}; let zoneShow = false; let zoneSel = null; let diagMode = "symptoms"; let crow = {};
+let wiz = { reed: null, problem: null, plan: [], step: 0, results: [], phase: "pick" };
+const WIZ_PROBLEMS = [["einstab","🎵 E nestabils / Mī problēmas"],["unresp","🥱 Sākumi / atsauksme"],["stuffy","👶 Smaga / stuffy"],["mushy","🫠 Mīksta / bez pretspiediena"],["weak","🍂 Vāja skaņa"],["flat","📉 Par zemu (flat)"],["sharp","📈 Par augstu (sharp)"],["freeblow","💨 Par brīva"]];
 
 const ZONES = {
   tip: { name: "Tip", gives: "Freer response, easier tonguing; the most sensitive area — work in tiny strokes. Clipping raises pitch; too-thin tip with a wide aperture = flat.", src: "Craypo (Tip Bevel, p.26) + Popkin & McKaig + Hardy/Yoder (5:00)" },
@@ -938,6 +941,57 @@ function wireText() {
   return t + ".";
 }
 
+function wizPickProblem(k) {
+  const r = reeds.find(x => x.reed_id === wiz.reed);
+  wiz.problem = k;
+  wiz.plan = r ? diagnose(r, { [k]: true }) : [];
+  wiz.step = 0; wiz.results = [];
+  wiz.phase = wiz.plan.length ? "act" : "done";
+  render();
+}
+function wizSkip() {
+  wiz.step++;
+  if (wiz.step >= wiz.plan.length) wiz.phase = "done";
+  render();
+}
+function wizVerdict(v) {
+  const r = reeds.find(x => x.reed_id === wiz.reed);
+  const s = wiz.plan[wiz.step];
+  const label = (WIZ_PROBLEMS.find(p => p[0] === wiz.problem) || [])[1] || wiz.problem;
+  if (r && s) {
+    r.log.push({ stamp: nowStamp(), rating: null, text: `🎯 Diagnoze (${label}): ${s.t} → ${v}` });
+    wiz.results.push({ t: s.t, v });
+    persist();
+    pushToGithub(r, "diagnozes vednis");
+  }
+  wiz.step++;
+  wiz.phase = wiz.step < wiz.plan.length ? "act" : "done";
+  render();
+}
+function wizLogRest() {
+  const r = reeds.find(x => x.reed_id === wiz.reed);
+  if (r) {
+    r.log.push({ stamp: nowStamp(), rating: null, text: "🌙 Diagnozes sesija pabeigta — mēle atpūsties līdz rītdienai." });
+    persist();
+    pushToGithub(r, "diagnozes vednis");
+    toast("🌙 Ierakstīts: atpūsties līdz rītdienai ✓");
+  }
+  wiz.reed = null; wiz.problem = null; wiz.plan = []; wiz.step = 0; wiz.results = []; wiz.phase = "pick";
+  render();
+}
+function wizRip() {
+  const r = reeds.find(x => x.reed_id === wiz.reed);
+  if (r) {
+    r.status = "nolietota";
+    r.log.push({ stamp: nowStamp(), rating: null, text: "💀 Diagnozes vednis: atslēgta (RIP)." });
+    persist();
+    pushToGithub(r, "diagnozes vednis: RIP");
+    toast("💀 Mēle atslēgta ✓");
+  }
+  wiz.reed = null; wiz.problem = null; wiz.plan = []; wiz.step = 0; wiz.results = []; wiz.phase = "pick";
+  render();
+}
+
 function saveLog() {
   const txt = document.getElementById("logtext").value.trim();
   const wtxt = wireText();
@@ -1372,6 +1426,67 @@ function render() {
         ${sugg.length ? sugg.map(s => `<div class="entry" style="margin:8px 0"><div class="txt"><b>${esc(s.t)}</b>${s.b ? `<div class="sub" style="margin-top:4px">${esc(s.b)}</div>` : ""}${s.src ? `<div class="sub" style="margin-top:4px;font-size:10px;font-style:italic;color:#a8a29e">📚 ${esc(s.src)}</div>` : ""}${s.z ? `<div style="margin-top:6px">${reedMapSVG(s.z.split(","), false, 110)}</div>` : ""}</div></div>`).join("") : "<p class='txt'>Nothing matches that combination yet.</p>"}
         </div>` : ""}
       ${diagMode === "symptoms" && r && r.m && r.m.length >= 2 ? `<div style="margin-top:10px">${profilePlot(r)}</div>` : ""}
+    </div>`;
+  }
+  else if (view === "vednis") {
+    const r = reeds.find(x => x.reed_id === wiz.reed);
+    const probLabel = (WIZ_PROBLEMS.find(p => p[0] === wiz.problem) || [])[1] || wiz.problem || "";
+    app.innerHTML = `
+    <div class="card">
+      <b style="font-size:14px">🎯 Diagnozes vednis</b>
+      <div class="sub" style="font-size:11px;margin-top:4px">Izvēlies mēli → problēmu → ieteikumu darīt → verdikts. Viss aiziet Log kā struktūrēts ieraksts.</div>
+      ${wiz.phase === "pick" ? `
+      <label style="margin-top:12px">1. Kura mēle?</label>
+      <select onchange="wiz.reed=this.value;wiz.phase=this.value?'problem':'pick';render()" style="height:36px;width:100%">
+        <option value="">— izvēlies —</option>
+        ${sortedForLibrary().map(x => `<option value="${esc(x.reed_id)}" ${x.reed_id===wiz.reed?"selected":""}>${esc(x.reed_id)} (${esc(x.status)})</option>`).join("")}
+      </select>
+      ${r && r.m && r.m.length >= 2 ? `<div style="margin-top:10px">${profilePlot(r)}</div>` : ""}
+      ` : `
+      <div class="stamp" style="margin-top:10px"><span><b>${esc(wiz.reed)}</b></span><span>${esc(probLabel)}${wiz.plan.length ? ` · solis ${Math.min(wiz.step+1, wiz.plan.length)}/${wiz.plan.length}` : ""}</span></div>
+      <div class="chips" style="margin-top:6px">
+        <button class="chip" onclick="wiz.reed=null;wiz.problem=null;wiz.plan=[];wiz.step=0;wiz.results=[];wiz.phase='pick';render()">↔︎ Cita mēle</button>
+      </div>
+      ${wiz.phase === "problem" ? `
+      <label style="margin-top:12px">2. Kas ir problēma?</label>
+      <div class="chips">${WIZ_PROBLEMS.map(([k,label]) => `<button class="chip" onclick="wizPickProblem('${k}')">${label}</button>`).join("")}</div>
+      ` : wiz.phase === "act" || wiz.phase === "verdict" ? (() => {
+        const s = wiz.plan[wiz.step];
+        if (!s) { return "<p class='txt'>Nav vairāk ieteikumu.</p>"; }
+        return `
+        <div class="entry" style="margin-top:12px">
+          <div class="txt"><b>${esc(s.t)}</b>
+          ${s.b ? `<div class="sub" style="margin-top:4px">${esc(s.b)}</div>` : ""}
+          ${s.src ? `<div class="sub" style="margin-top:4px;font-size:10px;font-style:italic;color:#a8a29e">📚 ${esc(s.src)}</div>` : ""}
+          ${s.z ? `<div style="margin-top:6px">${reedMapSVG(s.z.split(","), false, 110)}</div>` : ""}
+          </div>
+        </div>
+        ${wiz.phase === "act" ? `
+        <div class="chips" style="margin-top:10px">
+          <button class="chip on" onclick="wiz.phase='verdict';render()">✅ Izdarīju</button>
+          <button class="chip" onclick="wizSkip()">⏭️ Nākamais ieteikums</button>
+          <button class="chip" onclick="wiz.phase='done';render()">⏸️ Pietiek — beigt</button>
+        </div>
+        <div class="sub" style="font-size:11px;margin-top:6px">Pirms kasisāšanas: burbuļa tests. Pēc katra soļa: paspēlē un noliec verdiktu — viens solis = viena izmaiņa.</div>
+        ` : `
+        <label style="margin-top:10px">3. Vai palīdzēja?</label>
+        <div class="chips">
+          <button class="chip" style="color:#15803d" onclick="wizVerdict('labāka')">😊 Labāka</button>
+          <button class="chip" onclick="wizVerdict('tā pati')">😐 Tā pati</button>
+          <button class="chip" style="color:#b91c1c" onclick="wizVerdict('sliktāka')">😖 Sliktāka</button>
+        </div>
+        `}
+        `;
+      })() : wiz.phase === "done" ? `
+      <label style="margin-top:12px">Sesijas kopsavilkums</label>
+      ${wiz.results.length ? wiz.results.map(res => `<div class="entry"><div class="txt">${esc(res.t)} <b style="color:${res.v==="labāka"?"#15803d":res.v==="sliktāka"?"#b91c1c":"#78716c"}">→ ${esc(res.v)}</b></div></div>`).join("") : "<p class='txt'>Nekas netika izdarīts.</p>"}
+      <div class="chips" style="margin-top:10px">
+        <button class="chip" onclick="wizLogRest()">🌙 Pietiek šodien — atpūsties līdz rītdienai</button>
+        ${r && r.status !== "nolietota" ? `<button class="chip" style="color:#b91c1c" onclick="wizRip()">💀 RIP — atslēgt mēli</button>` : ""}
+        <button class="chip" onclick="wiz.problem=null;wiz.plan=[];wiz.step=0;wiz.results=[];wiz.phase='problem';render()">🔄 Vēl viena problēma</button>
+      </div>
+      ` : "<p class='txt'>Izvēlies problēmu.</p>"}
+      `}
     </div>`;
   }
   else if (view === "settings") {

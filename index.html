@@ -86,7 +86,7 @@
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v50</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v51</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -301,8 +301,51 @@ function profilePlot(r) {
 }
 const FIELD_LABELS = { wire_1: "1. drāts", wire_2: "2. drāts", wire_3: "3. drāts", status: "statuss", reitings_tagad: "reitings", reitings_sakumā: "reitings sākumā", metode: "metode", tip_profiler_setting: "TP iestatījums", maker: "izgatavotājs", tube_length: "caurulītes garums", blade_length: "plāksnes garums" };
 let diagReed = null; let diagSym = {}; let zoneShow = false; let zoneSel = null; let diagMode = "symptoms"; let crow = {};
-let wiz = { reed: null, problem: null, plan: [], step: 0, results: [], phase: "pick" };
+let wiz = { reed: null, problem: null, plan: [], step: 0, results: [], tests: {}, phase: "pick" };
 const WIZ_PROBLEMS = [["einstab","🎵 E nestabils / Mī problēmas"],["unresp","🥱 Sākumi / atsauksme"],["stuffy","👶 Smaga / stuffy"],["mushy","🫠 Mīksta / bez pretspiediena"],["weak","🍂 Vāja skaņa"],["flat","📉 Par zemu (flat)"],["sharp","📈 Par augstu (sharp)"],["freeblow","💨 Par brīva"]];
+// Craypo/Kamins "Indicator Notes" battery (CYOA book Part 2, pp. 17–21) — canary notes per problem.
+// Each: t = test name, q = what a POSITIVE result means, z = zone to work, res = book's predicted result.
+const WIZ_TESTS = {
+  einstab: [
+    { t: "F#3 → niente", q: "Taper F#3 to a niente in tune. Goes sharp, cuts out or loses substance? Thumbnail & taper to tip are not defined.", z: "tip", res: "weaker, flatter, more stable, more responsive" },
+    { t: "Eb4 (D4) stabilitāte", q: "Eb4 with resonance key unstable, especially in dynamic taper? Middle-third rails too thick in proportion to spine. D4 is affected too, less so.", z: "rails", res: "more stable, less responsive, more resistant" },
+    { t: "B2 → B1 slurs", q: "Whisper lock down, mf slur B2→B1: cracks or keeps the upper harmonic? Back too weak in comparison to front.", z: "back", res: "more stable, seems stronger" }
+  ],
+  unresp: [
+    { t: "A3 speaker key", q: "Intonation difference between A3 normal and A3 with speaker key unmanageably severe? Tapers from critical point to tip corners are uneven — keep the thumbnail keystone.", z: "tip", res: "weaker, flatter, more responsive, more free blowing" },
+    { t: "Bb3 false fingerings", q: "Bb3 with no speaker key cracks, or full vs false fingering (LH 1,2,3 RH 1,3) gap is severe? Refine those tapers — straight, not rounded. Careful not to weaken.", z: "wings", res: "weaker, flatter, more responsive, more free blowing" },
+    { t: "F#3 → niente", q: "Degree you can taper F#3 to a niente in tune = the response this cane has. If it needs too much embouchure, lightly brush the middle half keeping the tapers.", z: "heart", res: "weaker, flatter, more stable, more responsive" },
+    { t: "Rachael Young B3 Pinchy", q: "B3 responds to embouchure/air with unmanageably quick rate of change? Areas behind the tip are too strong vs the very tip.", z: "tip", res: "more stable" }
+  ],
+  stuffy: [
+    { t: "Bb2 embouchure", q: "Does Bb2 take too much embouchure to play comfortably in tune? Reed is weak — round the first wire (second if needed).", z: "tube", res: "more stable, sharper, less responsive, more resistant" },
+    { t: "Tip bevel", q: "Bevel too shallow (no clear 45° in the front 0.5mm)? = stuffy, sluggish response, weak collapsing tip. Scooped = hesitant p/mp attacks, especially tenor.", z: "tip", res: "restore 45° bevel: more responsive, more stable" },
+    { t: "Rails vs spine", q: "Rails overall too weak in proportion to spine = feels small, stuffy, collapses under correct embouchure. Rails must taper evenly collar→tip.", z: "rails", res: "stronger rails: fuller, more stable" }
+  ],
+  mushy: [
+    { t: "B2 → B1 slurs", q: "mf slur B2→B1 cracks or keeps the upper harmonic? Back too weak vs front — the classic 'no mountain at 16/L' shape.", z: "back", res: "more stable, seems stronger" },
+    { t: "Rails pārbaude", q: "Rails too thin in front = collapses under correct embouchure, small, stuffy, inflexible. Too thin too far back = flat and stuffy.", z: "rails", res: "stronger rails: fuller, more stable" }
+  ],
+  weak: [
+    { t: "Bb2 embouchure", q: "Bb2 takes too much embouchure to play in tune = reed is weak. Round the first wire, second if necessary.", z: "tube", res: "more stable, sharper, less responsive, more resistant" },
+    { t: "B2 → B1 slurs", q: "Slur cracks = back too weak vs front. Work the back.", z: "back", res: "more stable, seems stronger" },
+    { t: "Spine-to-rail tapers", q: "Spine flat, channels too strong in proportion to spine and rails? (the profiler's over-removal pattern) — balance the center-to-side taper.", z: "channels", res: "more stable, seems stronger" }
+  ],
+  flat: [
+    { t: "F2 mf attacks", q: "Mezzoforte attack on F2 very sharp? Front third too heavy compared to the back. Cross-check F#3, Bb3, A3 speaker and F4.", z: "tip", res: "weaker, flatter, more responsive, more free blowing" },
+    { t: "Short Eb3 / F4", q: "Short Eb3 (LH 1,3 + W) sharp or unstable, F4 also flat? Too much cane in back-third channels.", z: "channels", res: "weaker, flatter, less responsive, more resistant" },
+    { t: "E3 / C#3 pitch", q: "E3 and C#3 dropping in pitch? Round the tube.", z: "tube", res: "sharper, more resistant" }
+  ],
+  sharp: [
+    { t: "F2 mf attacks", q: "mf attack on F2 very sharp = front third too heavy vs back.", z: "tip", res: "weaker, flatter, more responsive, more free blowing" },
+    { t: "A3 speaker key", q: "A3 vs A3+speaker gap unmanageably severe = uneven tapers from critical point to tip corners.", z: "tip", res: "weaker, flatter, more responsive, more free blowing" },
+    { t: "F4 crack", q: "F4 cracks = reed too strong. Flatten first wire (rarely: second too round; check tip bevel).", z: "tube", res: "more flexible, flatter, more responsive, more free blowing" }
+  ],
+  freeblow: [
+    { t: "Eb4 (D4) stabilitāte", q: "Eb4 unstable in dynamic taper = middle-third rails too thick vs spine. Work in VERY small increments.", z: "rails", res: "more stable, less responsive, more resistant" },
+    { t: "Rails vs spine", q: "Rails overall too heavy in proportion to spine = feels weak, unstable, free blowing.", z: "rails", res: "steeper rail tapers: stronger, more resistant" }
+  ]
+};
 
 const ZONES = {
   tip: { name: "Tip", gives: "Freer response, easier tonguing; the most sensitive area — work in tiny strokes. Clipping raises pitch; too-thin tip with a wide aperture = flat.", src: "Craypo (Tip Bevel, p.26) + Popkin & McKaig + Hardy/Yoder (5:00)" },
@@ -946,6 +989,23 @@ function wizPickProblem(k) {
   wiz.problem = k;
   wiz.plan = r ? diagnose(r, { [k]: true }) : [];
   wiz.step = 0; wiz.results = [];
+  wiz.tests = {};
+  wiz.phase = (WIZ_TESTS[k] && WIZ_TESTS[k].length) ? "tests" : (wiz.plan.length ? "act" : "done");
+  render();
+}
+function wizTest(testKey, v) {
+  wiz.tests[testKey] = wiz.tests[testKey] === v ? null : v;
+  render();
+}
+function wizTestsDone() {
+  const r = reeds.find(x => x.reed_id === wiz.reed);
+  const label = (WIZ_PROBLEMS.find(p => p[0] === wiz.problem) || [])[1] || wiz.problem;
+  const answered = Object.entries(wiz.tests).filter(([, v]) => v);
+  if (r && answered.length) {
+    r.log.push({ stamp: nowStamp(), rating: null, text: `🎯 Tests (${label}): ${answered.map(([t, v]) => `${t} — ${v}`).join("; ")}` });
+    persist();
+    pushToGithub(r, "diagnozes vednis: tests");
+  }
   wiz.phase = wiz.plan.length ? "act" : "done";
   render();
 }
@@ -976,7 +1036,7 @@ function wizLogRest() {
     pushToGithub(r, "diagnozes vednis");
     toast("🌙 Ierakstīts: atpūsties līdz rītdienai ✓");
   }
-  wiz.reed = null; wiz.problem = null; wiz.plan = []; wiz.step = 0; wiz.results = []; wiz.phase = "pick";
+  wiz.reed = null; wiz.problem = null; wiz.plan = []; wiz.step = 0; wiz.results = []; wiz.tests = {}; wiz.phase = "pick";
   render();
 }
 function wizRip() {
@@ -988,7 +1048,7 @@ function wizRip() {
     pushToGithub(r, "diagnozes vednis: RIP");
     toast("💀 Mēle atslēgta ✓");
   }
-  wiz.reed = null; wiz.problem = null; wiz.plan = []; wiz.step = 0; wiz.results = []; wiz.phase = "pick";
+  wiz.reed = null; wiz.problem = null; wiz.plan = []; wiz.step = 0; wiz.results = []; wiz.tests = {}; wiz.phase = "pick";
   render();
 }
 
@@ -1445,12 +1505,34 @@ function render() {
       ` : `
       <div class="stamp" style="margin-top:10px"><span><b>${esc(wiz.reed)}</b></span><span>${esc(probLabel)}${wiz.plan.length ? ` · solis ${Math.min(wiz.step+1, wiz.plan.length)}/${wiz.plan.length}` : ""}</span></div>
       <div class="chips" style="margin-top:6px">
-        <button class="chip" onclick="wiz.reed=null;wiz.problem=null;wiz.plan=[];wiz.step=0;wiz.results=[];wiz.phase='pick';render()">↔︎ Cita mēle</button>
+        <button class="chip" onclick="wiz.reed=null;wiz.problem=null;wiz.plan=[];wiz.step=0;wiz.results=[];wiz.tests={};wiz.phase='pick';render()">↔︎ Cita mēle</button>
       </div>
       ${wiz.phase === "problem" ? `
       <label style="margin-top:12px">2. Kas ir problēma?</label>
       <div class="chips">${WIZ_PROBLEMS.map(([k,label]) => `<button class="chip" onclick="wizPickProblem('${k}')">${label}</button>`).join("")}</div>
-      ` : wiz.phase === "act" || wiz.phase === "verdict" ? (() => {
+      ` : wiz.phase === "tests" ? (() => {
+        const tests = WIZ_TESTS[wiz.problem] || [];
+        const answered = Object.entries(wiz.tests).filter(([, v]) => v).length;
+        return `
+        <label style="margin-top:12px">🧪 Indikatora testi <span class="sub">(Craypo/Kamins — "canaries in the coal mine"; atzīmē, kas rezultāts)</span></label>
+        <div class="sub" style="font-size:10px;font-style:italic;margin-top:2px">Spēlē fundamentālos/repertuāra kontekstā — nevis kā izolētus testus.</div>
+        ${tests.map((x, i) => `
+        <div class="entry" style="margin-top:8px">
+          <div class="txt"><b>${esc(x.t)}</b> ${wiz.tests["t"+i] ? `<span class="star" style="font-size:9px">${wiz.tests["t"+i]}</span>` : ""}</div>
+          <div class="sub" style="margin-top:4px">${esc(x.q)}</div>
+          ${x.res ? `<div class="sub" style="margin-top:4px;font-size:10px">➡️ Ja jā, darbs šeit: ${esc(x.res)}</div>` : ""}
+          ${x.z ? `<div style="margin-top:6px">${reedMapSVG([x.z], false, 110)}</div>` : ""}
+          <div class="chips" style="margin-top:6px">
+            <button class="chip ${wiz.tests["t"+i]==="jā"?"on":""}" style="${wiz.tests["t"+i]==="jā"?"":"color:#15803d"}" onclick="wizTest('t${i}','jā')">✅ Jā</button>
+            <button class="chip ${wiz.tests["t"+i]==="nē"?"on":""}" onclick="wizTest('t${i}','nē')">❌ Nē</button>
+          </div>
+        </div>`).join("")}
+        <div class="chips" style="margin-top:10px">
+          <button class="chip on" onclick="wizTestsDone()">➡️ Turpināt uz ieteikumiem${answered ? ` (${answered} atzīmēti)` : ""}</button>
+        </div>
+        <div class="sub" style="font-size:11px;margin-top:6px">Atzīmētie testi aizies Log kā ieraksts 🎯 Tests — pozitīvie apstiprina, kur strādāt, pirms kāds ksisāšanas ieteikums.</div>
+        `;
+      })() : wiz.phase === "act" || wiz.phase === "verdict" ? (() => {
         const s = wiz.plan[wiz.step];
         if (!s) { return "<p class='txt'>Nav vairāk ieteikumu.</p>"; }
         return `
@@ -1686,3 +1768,4 @@ render();
 </script>
 </body>
 </html>
+

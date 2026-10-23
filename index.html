@@ -85,7 +85,7 @@
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v48</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v49</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -922,6 +922,7 @@ function saveReed() {
   reeds.push(newForm); persist();
   const saved = newForm;
   toast(`Izveidots ${saved.reed_id} ✓`);
+  if (saved.comments && saved.comments.length) toast("💬 Izgatavošanas piezīme saglabāta ✓");
   view = "library"; render();
   pushToGithub(saved, "jauna mēle");
 }
@@ -1056,6 +1057,8 @@ function render() {
             <input style="height:32px" inputmode="decimal" type="text" placeholder="bez" value="${esc(row.right)}" oninput="updM('${p}','right',this.value)"></div>`;
           }).join("")}
         </details>
+        <label>Piezīme par izgatavošanu (nav obligāti)</label>
+        <textarea id="newformcomment" rows="3" placeholder="piem. Vārījot koks mazliet sprakstēja, wire 1 gāja saspringti, sajūtas par mēli taisot…" oninput="newForm.comments = this.value.trim() ? [{stamp: nowStamp(), text: this.value}] : []; render()"></textarea>
         <button class="primary" onclick="saveReed()" ${f.reed_id==="…"?"disabled":""}>Izveidot ${esc(f.reed_id)}.md</button>
       </div>
       <div class="card"><b id="prevfile" style="font-size:13px">Priekšskatījums: ${esc(cfg.dir)}/${esc(f.reed_id)}.md</b><pre id="prev">${esc(reedToMarkdown(f))}</pre></div>`;

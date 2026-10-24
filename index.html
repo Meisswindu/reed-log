@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="lv">
 <head>
@@ -86,7 +85,7 @@
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v51</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v52</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -179,6 +178,8 @@ function reedToMarkdown(r) {
     `maker: "${r.maker || "Pauls"}"`,
     r.tube_length && `tube_length: "${r.tube_length}"`,
     r.blade_length && `blade_length: "${r.blade_length}"`,
+    r.tube_length_start && r.tube_length_start !== r.tube_length && `tube_length_start: "${r.tube_length_start}"`,
+    r.blade_length_start && r.blade_length_start !== r.blade_length && `blade_length_start: "${r.blade_length_start}"`,
     r.shape && `shape: "${r.shape}"`,
     r.cane_manufacturer && `cane_manufacturer: ${r.cane_manufacturer}`,
     r.metode && `metode: ${r.metode}`,
@@ -789,7 +790,7 @@ function parseReedMarkdown(text, fallbackId) {
   });
   const reed = {
     reed_id: fm.reed_id || fallbackId, datums: fm.datums || today(),
-    shape: fm.shape || "", maker: fm.maker || "", tube_length: fm.tube_length || "", blade_length: fm.blade_length || "", cane_manufacturer: fm.cane_manufacturer || "", metode: fm.metode || "", cane_hardness: fm.cane_hardness || "",
+    shape: fm.shape || "", maker: fm.maker || "", tube_length: fm.tube_length || "", tube_length_start: fm.tube_length_start || "", blade_length: fm.blade_length || "", blade_length_start: fm.blade_length_start || "", cane_manufacturer: fm.cane_manufacturer || "", metode: fm.metode || "", cane_hardness: fm.cane_hardness || "",
     wire_gauge: fm.wire_gauge || "", wire_1: fm.wire_1 || "", wire_2: fm.wire_2 || "", wire_3: fm.wire_3 || "", tip_profiler_setting: fm.tip_profiler_setting || "",
     status: fm.status || "testēšanā", saistīts_ar: fm.saistīts_ar || "",
     reitings_sākumā: fm.reitings_sākumā || "", reitings_tagad: fm.reitings_tagad || "",
@@ -955,7 +956,7 @@ function go(v) {
 }
 
 function startNew() {
-  newForm = { reed_id: "…", datums: today(), shape: "9", maker: "Pauls", cane_manufacturer: "", metode: "", cane_hardness: "", tube_length: "", blade_length: "", wire_gauge: "", wire_1: "", wire_2: "", wire_3: "", tip_profiler_setting: "", status: "testēšanā", saistīts_ar: "", reitings_sākumā: "", reitings_tagad: "", e_nestabila: "", e_pakape: "", m: [], log: [] };
+  newForm = { reed_id: "…", datums: today(), shape: "9", maker: "Pauls", cane_manufacturer: "", metode: "", cane_hardness: "", tube_length: "", tube_length_start: "", blade_length: "", blade_length_start: "", wire_gauge: "", wire_1: "", wire_2: "", wire_3: "", tip_profiler_setting: "", status: "testēšanā", saistīts_ar: "", reitings_sākumā: "", reitings_tagad: "", e_nestabila: "", e_pakape: "", m: [], log: [] };
 }
 
 function setForm(k, v) {
@@ -965,6 +966,8 @@ function setForm(k, v) {
 }
 
 function saveReed() {
+  newForm.tube_length_start = newForm.tube_length;
+  newForm.blade_length_start = newForm.blade_length;
   reeds.push(newForm); persist();
   const saved = newForm;
   toast(`Izveidots ${saved.reed_id} ✓`);
@@ -1141,8 +1144,8 @@ function render() {
           <datalist id="makerlist">${MAKERS.map(mk => `<option value="${mk}">`).join("")}</datalist></div>
           <div><label>reed_id (auto)</label><input value="${esc(f.reed_id)}" onchange="newForm.reed_id=this.value;render()"></div>
           <div><label>datums</label><input type="date" value="${esc(f.datums)}" onchange="newForm.datums=this.value"></div>
-          <div><label>caurulītes garums (mm)</label><input inputmode="decimal" placeholder="piem. 27" value="${esc(f.tube_length)}" oninput="newForm.tube_length=this.value"></div>
-          <div><label>plāksnes garums (mm)</label><input inputmode="decimal" placeholder="piem. 28" value="${esc(f.blade_length)}" oninput="newForm.blade_length=this.value"></div>
+          <div><label>caurulītes garums — sākuma (mm)</label><input inputmode="decimal" placeholder="piem. 27" value="${esc(f.tube_length)}" oninput="newForm.tube_length=this.value"></div>
+          <div><label>plāksnes garums — sākuma (mm)</label><input inputmode="decimal" placeholder="piem. 28" value="${esc(f.blade_length)}" oninput="newForm.blade_length=this.value"></div>
           <div><label>shape</label><input placeholder="9" value="${esc(f.shape)}" oninput="newForm.shape=this.value"></div>
           <div><label>cane_hardness</label><input inputmode="decimal" placeholder="piem. 10.5" value="${esc(f.cane_hardness)}" oninput="newForm.cane_hardness=this.value"></div>
           <div><label>1. drāts</label><input placeholder="copper / 6 / 7" value="${esc(f.wire_1)}" oninput="newForm.wire_1=this.value">${wireChipsNew(1)}</div>
@@ -1406,8 +1409,10 @@ function render() {
             <datalist id="makerlist2">${MAKERS.map(mk => `<option value="${mk}">`).join("")}</datalist>
             <label style="margin:8px 0 2px">caurulītes garums (mm)</label>
             <input inputmode="decimal" value="${esc(r.tube_length || "")}" onchange="editField('tube_length',this.value)">
+            ${String(r.tube_length_start || "").trim() ? `<div class="sub" style="font-size:10px;margin-top:2px">📍 sākuma garums: <b>${esc(r.tube_length_start)} mm</b>${r.tube_length_start !== r.tube_length ? ` (tagad ${esc(r.tube_length)} mm)` : ""}</div>` : ""}
             <label style="margin:8px 0 2px">plāksnes garums (mm)</label>
             <input inputmode="decimal" value="${esc(r.blade_length || "")}" onchange="editField('blade_length',this.value)">
+            ${String(r.blade_length_start || "").trim() ? `<div class="sub" style="font-size:10px;margin-top:2px">📍 sākuma garums: <b>${esc(r.blade_length_start)} mm</b>${r.blade_length_start !== r.blade_length ? ` (tagad ${esc(r.blade_length)} mm)` : ""}</div>` : ""}
           </div>
           ${field("cane_hardness","cane_hardness","piem. 10.5")}
           ${field("wire_1","1. drāts","copper / 6 / 7")}
@@ -1630,7 +1635,17 @@ function editM(point, side, val) {
 function setEpak(n) { const r = reeds.find(x => x.reed_id === editTarget); if (!r) return; r.e_pakape = String(r.e_pakape) === String(n) ? "" : n; persist(); render(); }
 function setNewE(v) { newForm.e_nestabila = String(newForm.e_nestabila) === v ? "" : v; if (newForm.e_nestabila !== "jā") newForm.e_pakape = ""; render(); }
 function setNewEpak(n) { newForm.e_pakape = String(newForm.e_pakape) === String(n) ? "" : n; render(); }
-function editField(k, v) { const r = reeds.find(x => x.reed_id === editTarget); if (r) { r[k] = v; persist(); } }
+function editField(k, v) {
+  const r = reeds.find(x => x.reed_id === editTarget);
+  if (r) {
+    // first-ever length change: remember the value before the change as the starting length (legacy reeds too)
+    if ((k === "tube_length" || k === "blade_length") && v !== r[k]) {
+      const sk = k + "_start";
+      if (!String(r[sk] || "").trim() && String(r[k] || "").trim()) r[sk] = r[k];
+    }
+    r[k] = v; persist();
+  }
+}
 function rateReed(n) {
   const r = reeds.find(x => x.reed_id === editTarget); if (!r) return;
   r.reitings_tagad = String(r.reitings_tagad) === String(n) ? "" : n;

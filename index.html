@@ -85,7 +85,7 @@
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v52</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v53</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -793,7 +793,7 @@ function parseReedMarkdown(text, fallbackId) {
     shape: fm.shape || "", maker: fm.maker || "", tube_length: fm.tube_length || "", tube_length_start: fm.tube_length_start || "", blade_length: fm.blade_length || "", blade_length_start: fm.blade_length_start || "", cane_manufacturer: fm.cane_manufacturer || "", metode: fm.metode || "", cane_hardness: fm.cane_hardness || "",
     wire_gauge: fm.wire_gauge || "", wire_1: fm.wire_1 || "", wire_2: fm.wire_2 || "", wire_3: fm.wire_3 || "", tip_profiler_setting: fm.tip_profiler_setting || "",
     status: fm.status || "testēšanā", saistīts_ar: fm.saistīts_ar || "",
-    reitings_sākumā: fm.reitings_sākumā || "", reitings_tagad: fm.reitings_tagad || "",
+    reitings_sākumā: fm.reitings_sākumā || "", reitings_tagad: fm.reitings_tagad || fm.reitings_sākumā || "",
     e_nestabila: fm.e_nestabila || "", e_pakape: fm.e_nestabilitates_pakape || "",
     m: meas, log, comments: notes, meas_log, field_log, e_log, _file: fallbackId + ".md"
   };
@@ -966,6 +966,8 @@ function setForm(k, v) {
 }
 
 function saveReed() {
+  // a fresh reed's current rating = its starting rating (until re-rated)
+  if (!String(newForm.reitings_tagad || "").trim() && String(newForm.reitings_sākumā || "").trim()) newForm.reitings_tagad = newForm.reitings_sākumā;
   newForm.tube_length_start = newForm.tube_length;
   newForm.blade_length_start = newForm.blade_length;
   reeds.push(newForm); persist();
@@ -1098,7 +1100,7 @@ function render() {
       <button class="bigbtn" onclick="go('new')"><span class="ico">🎵</span><div><b>Jauna mēle</b><div class="desc">Reģistrē tikko taisītu vai saņemtu mēli</div></div></button>
       <button class="bigbtn" onclick="go('library')"><span class="ico">🔎</span><div><b>Meklēt veco</b><div class="desc">Bibliotēka, reitingi un līdzīgās mēles</div></div></button>
       <button class="bigbtn" style="padding:14px" onclick="go('log')"><span class="ico" style="font-size:22px">⚡</span><div><b>Ātrais log</b><div class="desc">Pieraksti notikumu vai pārreitē mēli (2 tap)</div></div></button>
-      ${rot.length ? `<div class="card" style="background:#fffbeb;border-color:#fcd34d"><b style="font-size:12px">Tagad rotācijā:</b><div class="chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${rot.map(r => `<span class="pill s-${esc(r.status)}">${esc(r.reed_id)} · ${esc(r.reitings_tagad || "–")}/10</span>`).join("")}</div></div>` : ""}
+      ${rot.length ? `<div class="card" style="background:#fffbeb;border-color:#fcd34d"><b style="font-size:12px">Tagad rotācijā:</b><div class="chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${rot.map(r => `<span class="pill s-${esc(r.status)}">${esc(r.reed_id)} · ${esc(r.reitings_tagad || r.reitings_sākumā || "–")}/10</span>`).join("")}</div></div>` : ""}
       <div class="card"><b style="font-size:13px">⚙️ GitHub savienojums</b>
         <p class="txt">${cfg.token ? "Token ievadīts — ieraksti tiks saglabāti tavā repo." : "Bez token ieraksti saglabājas tikai šajā pārlūkā. Ievadi token, lai rakstītu straight uz Obsidian vault."}</p>
         <div style="display:flex;gap:8px"><input id="cfg-token" type="password" placeholder="GitHub token (fine-grained)" value="${esc(cfg.token)}" style="flex:1"><button class="chip" onclick="saveToken()">Saglabāt</button></div>
@@ -1195,7 +1197,7 @@ function render() {
       ${chosen ? `
         <div class="card" style="margin-top:14px;background:#f0fdf4;border-color:#86efac">
           <b style="font-size:13px">${esc(chosen.reed_id)} — iespēlē un ieraksti!</b>
-          <div class="sub" style="font-size:11px;margin-top:4px">Pēdējā spēle: ${chosen.log && chosen.log.length ? esc(chosen.log.map(e=>e.stamp).sort().slice(-1)[0]) : "nav vēl"} (${daysSincePlayed(chosen) >= 99 ? "nezināms" : daysSincePlayed(chosen) + " dienas atpakaļ"}) · kopā iespēlēts: ${minutesPlayed(chosen)} min · vecums: ${reedAge(chosen) !== null ? "diena " + (reedAge(chosen) + 1) : "nezināms"} · reitings tagad: ${esc(chosen.reitings_tagad || "–")}/10</div>
+          <div class="sub" style="font-size:11px;margin-top:4px">Pēdējā spēle: ${chosen.log && chosen.log.length ? esc(chosen.log.map(e=>e.stamp).sort().slice(-1)[0]) : "nav vēl"} (${daysSincePlayed(chosen) >= 99 ? "nezināms" : daysSincePlayed(chosen) + " dienas atpakaļ"}) · kopā iespēlēts: ${minutesPlayed(chosen)} min · vecums: ${reedAge(chosen) !== null ? "diena " + (reedAge(chosen) + 1) : "nezināms"} · reitings tagad: ${esc(chosen.reitings_tagad || chosen.reitings_sākumā || "–")}/10</div>
           ${daysSincePlayed(chosen) >= 14 ? `<div class="sub" style="font-size:11px;margin-top:6px;color:#b45309">⚠️ Šī mēle nav spēlēta ${daysSincePlayed(chosen) >= 99 ? "vēl nekad" : "jau " + daysSincePlayed(chosen) + " dienas"}. Ja tā ir laba — pārcel uz <b>aktīva</b>; ja nespēj tikt — apsver <b>salauzt</b> un sākt jaunu.</div>
           <div style="display:flex;gap:6px;margin-top:6px">
             <button class="chip" onclick="quickStatus('${esc(chosen.reed_id)}','aktīva')">✅ Laba — uz aktīva</button>

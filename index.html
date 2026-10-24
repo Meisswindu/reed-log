@@ -85,7 +85,7 @@
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v53</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v54</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -302,6 +302,61 @@ function profilePlot(r) {
 }
 const FIELD_LABELS = { wire_1: "1. drāts", wire_2: "2. drāts", wire_3: "3. drāts", status: "statuss", reitings_tagad: "reitings", reitings_sakumā: "reitings sākumā", metode: "metode", tip_profiler_setting: "TP iestatījums", maker: "izgatavotājs", tube_length: "caurulītes garums", blade_length: "plāksnes garums" };
 let diagReed = null; let diagSym = {}; let zoneShow = false; let zoneSel = null; let diagMode = "symptoms"; let crow = {};
+// ⚖️ compare two reed profiles (silhouette overlay + point-by-point diff)
+let cmp = { a: null, b: null };
+function cmpPick(id) {
+  if (cmp.a === id) { cmp.a = cmp.b || null; cmp.b = null; }
+  else if (cmp.b === id) { cmp.b = null; }
+  else if (!cmp.a) cmp.a = id;
+  else if (!cmp.b) cmp.b = id;
+  else { cmp.a = cmp.b; cmp.b = id; }
+  render();
+}
+function cmpClear() { cmp = { a: null, b: null }; render(); }
+function cmpAvgAt(r, p) {
+  const row = (r.m || []).find(x => normPoint(x.point) === normPoint(p));
+  if (!row) return null;
+  const vals = [row.left, row.right].map(Number).filter(v => !isNaN(v));
+  return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+}
+function profileCompare(a, b) {
+  const union = MM_POINTS.filter(p => [a, b].some(r => (r.m || []).some(x => normPoint(x.point) === normPoint(p))));
+  if (union.length < 2) return "<p class='txt' style='margin-top:8px'>Vismaz vienai mēlei vajag 2+ mērījumu punktus, lai salīdzinātu.</p>";
+  const xs = union.map((p, i) => 10 + i * (280 / (union.length - 1)));
+  const maxV = Math.max(...[a, b].flatMap(r => (r.m || []).flatMap(row => [Number(row.left) || 0, Number(row.right) || 0])), 1);
+  const y = v => 90 - (v / maxV) * 78;
+  const lines = (r, col) => ["left", "right"].map(side => {
+    const seg = union.map(p => {
+      const row = (r.m || []).find(x => normPoint(x.point) === normPoint(p));
+      return (row && row[side] !== "" && row[side] !== undefined && !isNaN(Number(row[side]))) ? `${xs[union.indexOf(p)]},${y(Number(row[side]))}` : null;
+    }).filter(Boolean);
+    return seg.length >= 2 ? `<path d="M${seg.join(" L")}" fill="none" stroke="${col}" stroke-width="2" ${side === "right" ? 'stroke-dasharray="5 3"' : ""}/>` : "";
+  }).join("");
+  const TGT = { "4": 55, "8": 65, "12": 70, "16": 80, "20": 85, "24": 90 };
+  const tp = union.map((p, i) => TGT[String(p).trim()] !== undefined ? `${xs[i]},${y(TGT[String(p).trim()])}` : null).filter(Boolean);
+  const diffRows = union.map(p => {
+    const va = cmpAvgAt(a, p), vb = cmpAvgAt(b, p);
+    if (va == null || vb == null) return "";
+    const d = vb - va;
+    return `<tr><td style="padding:2px 8px;text-align:left;font-weight:600">${esc(p)}</td><td style="padding:2px 8px;text-align:center">${va.toFixed(1)}</td><td style="padding:2px 8px;text-align:center">${vb.toFixed(1)}</td><td style="padding:2px 8px;text-align:center;font-weight:700;color:${Math.abs(d) >= 3 ? (d > 0 ? "#b91c1c" : "#15803d") : "#78716c"}">${d >= 0 ? "+" : ""}${d.toFixed(1)}</td></tr>`;
+  }).join("");
+  return `
+    <svg viewBox="0 0 300 110" style="width:100%;max-width:420px;background:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;margin-top:8px">
+      ${[0, 0.25, 0.5, 0.75, 1].map(t => `<line x1="10" x2="290" y1="${12 + t * 78}" y2="${12 + t * 78}" stroke="#eee" stroke-width="1"/>`).join("")}
+      ${tp.length >= 2 ? `<path d="M${tp.join(" L")}" fill="none" stroke="#16a34a" stroke-width="1.4" stroke-dasharray="3 4" opacity="0.8"/>` : ""}
+      ${lines(a, "#1d4ed8")}
+      ${lines(b, "#ea580c")}
+      ${xs.map((x, i) => `<text x="${x}" y="104" text-anchor="middle" font-size="8" fill="#78716c">${union[i]}</text>`).join("")}
+    </svg>
+    <div style="font-size:10px;color:#78716c;margin-top:4px">
+      <span style="color:#1d4ed8">━ ${esc(a.reed_id)}</span> &nbsp; <span style="color:#ea580c">━ ${esc(b.reed_id)}</span> · svītrotais = 2. puse · <span style="color:#16a34a">╌╌ taught target</span>
+    </div>
+    ${diffRows ? `<table style="width:100%;margin-top:8px;font-size:11px;border-collapse:collapse">
+      <tr style="color:#78716c"><th style="padding:2px 8px;text-align:left">punkts</th><th>${esc(a.reed_id)}</th><th>${esc(b.reed_id)}</th><th>Δ</th></tr>
+      ${diffRows}
+    </table>` : ""}
+    <div class="sub" style="font-size:11px;margin-top:6px">Δ = ${esc(b.reed_id)} − ${esc(a.reed_id)} · sarkanais ≥ +3 (smagāks par pirmo), zaļais ≤ −3 (viegāks par pirmo)</div>`;
+}
 let wiz = { reed: null, problem: null, plan: [], step: 0, results: [], tests: {}, phase: "pick" };
 const WIZ_PROBLEMS = [["einstab","🎵 E nestabils / Mī problēmas"],["unresp","🥱 Sākumi / atsauksme"],["stuffy","👶 Smaga / stuffy"],["mushy","🫠 Mīksta / bez pretspiediena"],["weak","🍂 Vāja skaņa"],["flat","📉 Par zemu (flat)"],["sharp","📈 Par augstu (sharp)"],["freeblow","💨 Par brīva"]];
 // Craypo/Kamins "Indicator Notes" battery (CYOA book Part 2, pp. 17–21) — canary notes per problem.
@@ -1322,6 +1377,14 @@ function render() {
         </div>
         <div class="sub" style="font-size:11px;margin-top:6px">Rāda ${libFiltered().length} no ${reeds.length} mēlēm</div>
       </div>
+      ${cmp.a || cmp.b ? `<div class="card" style="background:#eff6ff;border-color:#93c5fd">
+        <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:14px">⚖️ Salīdzināt</b><button class="chip" onclick="cmpClear()">✕ notīrīt</button></div>
+        <div class="chips" style="margin-top:6px">
+          <span class="mchip" style="border-color:#93c5fd;background:#dbeafe">${cmp.a ? `A: <b>${esc(cmp.a)}</b>` : "A: —"}</span>
+          <span class="mchip" style="border-color:#fed7aa;background:#ffedd5">${cmp.b ? `B: <b>${esc(cmp.b)}</b>` : "B: —"}</span>
+        </div>
+        ${(cmp.a && cmp.b) ? (() => { const ra = reeds.find(x => x.reed_id === cmp.a), rb = reeds.find(x => x.reed_id === cmp.b); return (ra && rb) ? profileCompare(ra, rb) : ""; })() : `<div class="sub" style="font-size:11px;margin-top:6px">Izvēlies otru mēli ar ⚖️ uz kartītes.</div>`}
+      </div>` : `<div class="sub" style="font-size:11px;margin:0 0 4px">💡 Spied ⚖️ uz divām mēles kartītēm, lai salīdzinātu to profilus.</div>`}
       ${libFiltered().map(r => {
         const hist = ratingHistory(r);
         return `<div class="card">
@@ -1329,6 +1392,7 @@ function render() {
             <div><b>${esc(r.reed_id)}</b><div class="sub">${esc(r.datums)}${r.log.length ? ` · ${r.log.length} log ieraksti` : ""}</div></div>
             <div style="display:flex;gap:6px;align-items:center">
               <button class="chip" style="font-size:12px;padding:2px 10px" onclick="enterEdit('${esc(r.reed_id)}')">✏️</button>
+              <button class="chip" style="font-size:12px;padding:2px 10px${(cmp.a===r.reed_id||cmp.b===r.reed_id)?";background:#3b82f6;color:#fff;border-color:#1d4ed8":""}" onclick="cmpPick('${esc(r.reed_id)}')">⚖️</button>
               <span class="pill s-${esc(r.status)}">${esc(r.status)}</span>
             </div>
           </div>

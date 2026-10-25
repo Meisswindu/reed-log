@@ -85,7 +85,7 @@
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v57</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v58</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -98,6 +98,7 @@ const saveCfg = () => localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
 
 const CANE_PREFIX = { "Lavoro":"L", "Danzi":"D", "Rigotti":"R", "Glotin":"G", "Alliaud":"A", "Rieger":"V", "Normunds (kolēģis)":"NZ" };
 const METODES = ["Mateo","vārīšana"];
+const DIEGI = ["līme","bišu vasks","abu (līme + vasks)"];
 const STATUSES = ["testēšanā","aktīva","rezerve","salauzta","nolietota"];
 const MM_POINTS = ["T","2","4","8","12","16","20","24","L"];
 const normPoint = (p) => String(p).toLowerCase().replace(/mm/g,"").replace("beigas","l").replace("tip","t").trim();
@@ -183,6 +184,7 @@ function reedToMarkdown(r) {
     r.shape && `shape: "${r.shape}"`,
     r.cane_manufacturer && `cane_manufacturer: ${r.cane_manufacturer}`,
     r.metode && `metode: ${r.metode}`,
+    r.diegs && `diegs: "${r.diegs}"`,
     r.cane_hardness && `cane_hardness: "${r.cane_hardness}"`,
     r.wire_1 && `wire_1: ${r.wire_1}`,
     r.wire_2 && `wire_2: ${r.wire_2}`,
@@ -300,7 +302,7 @@ function profilePlot(r) {
     </div>
   </div>`;
 }
-const FIELD_LABELS = { wire_1: "1. drāts", wire_2: "2. drāts", wire_3: "3. drāts", status: "statuss", reitings_tagad: "reitings", reitings_sakumā: "reitings sākumā", metode: "metode", tip_profiler_setting: "TP iestatījums", maker: "izgatavotājs", tube_length: "caurulītes garums", blade_length: "plāksnes garums" };
+const FIELD_LABELS = { wire_1: "1. drāts", wire_2: "2. drāts", wire_3: "3. drāts", status: "statuss", reitings_tagad: "reitings", reitings_sākumā: "reitings sākumā", metode: "metode", diegs: "diegs", tip_profiler_setting: "TP iestatījums", maker: "izgatavotājs", tube_length: "caurulītes garums", blade_length: "plāksnes garums" };
 let diagReed = null; let diagSym = {}; let zoneShow = false; let zoneSel = null; let diagMode = "symptoms"; let crow = {};
 // ⚖️ compare two reed profiles (silhouette overlay + point-by-point diff)
 let cmp = { a: null, b: null };
@@ -855,7 +857,7 @@ function parseReedMarkdown(text, fallbackId) {
   });
   const reed = {
     reed_id: fm.reed_id || fallbackId, datums: fm.datums || today(),
-    shape: fm.shape || "", maker: fm.maker || "", tube_length: fm.tube_length || "", tube_length_start: fm.tube_length_start || "", blade_length: fm.blade_length || "", blade_length_start: fm.blade_length_start || "", cane_manufacturer: fm.cane_manufacturer || "", metode: fm.metode || "", cane_hardness: fm.cane_hardness || "",
+    shape: fm.shape || "", maker: fm.maker || "", tube_length: fm.tube_length || "", tube_length_start: fm.tube_length_start || "", blade_length: fm.blade_length || "", blade_length_start: fm.blade_length_start || "", cane_manufacturer: fm.cane_manufacturer || "", metode: fm.metode || "", diegs: fm.diegs || "", cane_hardness: fm.cane_hardness || "",
     wire_gauge: fm.wire_gauge || "", wire_1: fm.wire_1 || "", wire_2: fm.wire_2 || "", wire_3: fm.wire_3 || "", tip_profiler_setting: fm.tip_profiler_setting || "",
     status: fm.status || "testēšanā", saistīts_ar: fm.saistīts_ar || "",
     reitings_sākumā: fm.reitings_sākumā || "", reitings_tagad: fm.reitings_tagad || fm.reitings_sākumā || "",
@@ -885,7 +887,7 @@ function libFiltered() {
     if (libFilter.e === "nestabila" && r.e_nestabila !== "jā") return false;
     if (libFilter.e === "stabila" && r.e_nestabila === "jā") return false;
     if (!q) return true;
-    const hay = [r.reed_id, r.cane_manufacturer, r.metode, r.shape, r.status, r.tip_profiler_setting, r.cane_hardness, r.maker, r.tube_length, r.blade_length, r.wire_1, r.wire_2, r.wire_3, ...(r.log||[]).map(e=>e.text), ...(r.comments||[]).map(c=>c.text)].filter(Boolean).join(" ").toLowerCase();
+    const hay = [r.reed_id, r.cane_manufacturer, r.metode, r.diegs, r.shape, r.status, r.tip_profiler_setting, r.cane_hardness, r.maker, r.tube_length, r.blade_length, r.wire_1, r.wire_2, r.wire_3, ...(r.log||[]).map(e=>e.text), ...(r.comments||[]).map(c=>c.text)].filter(Boolean).join(" ").toLowerCase();
     return hay.includes(q);
   });
 }
@@ -1021,7 +1023,7 @@ function go(v) {
 }
 
 function startNew() {
-  newForm = { reed_id: "…", datums: today(), shape: "9", maker: "Pauls", cane_manufacturer: "", metode: "", cane_hardness: "", tube_length: "", tube_length_start: "", blade_length: "", blade_length_start: "", wire_gauge: "", wire_1: "", wire_2: "", wire_3: "", tip_profiler_setting: "", status: "testēšanā", saistīts_ar: "", reitings_sākumā: "", reitings_tagad: "", e_nestabila: "", e_pakape: "", m: [], log: [] };
+  newForm = { reed_id: "…", datums: today(), shape: "9", maker: "Pauls", cane_manufacturer: "", metode: "", diegs: "", cane_hardness: "", tube_length: "", tube_length_start: "", blade_length: "", blade_length_start: "", wire_gauge: "", wire_1: "", wire_2: "", wire_3: "", tip_profiler_setting: "", status: "testēšanā", saistīts_ar: "", reitings_sākumā: "", reitings_tagad: "", e_nestabila: "", e_pakape: "", m: [], log: [] };
 }
 
 function setForm(k, v) {
@@ -1223,6 +1225,8 @@ function render() {
         </div>
         <label>metode (kā taisīja blanku)</label>
         <div class="chips">${METODES.map(mm => `<button class="chip ${f.metode===mm?"on":""}" onclick="newForm.metode='${mm}';render()">${mm}</button>`).join("")}</div>
+        <label>diegs — ar ko līmēts (rezonances tests)</label>
+        <div class="chips">${DIEGI.map(d => `<button class="chip ${f.diegs===d?"on":""}" onclick="newForm.diegs='${d}';render()">${d}</button>`).join("")}</div>
         <label>Vai E ir nestabils?</label>
         <div class="chips">${["jā","nē"].map(v => `<button class="chip ${f.e_nestabila===v?"on":""}" onclick="setNewE('${v}')">${v}</button>`).join("")}</div>
         ${f.e_nestabila === "jā" ? `
@@ -1406,7 +1410,7 @@ function render() {
               <span class="pill s-${esc(r.status)}">${esc(r.status)}</span>
             </div>
           </div>
-          <div class="chips">${[r.maker && r.maker !== "Pauls" ? "izgatavotājs: " + r.maker : "", r.cane_manufacturer, r.tube_length && "caurule " + r.tube_length + "mm", r.blade_length && "plāksne " + r.blade_length + "mm", r.metode && "metode: "+r.metode, r.shape && "shape "+r.shape, r.tip_profiler_setting && "TP "+r.tip_profiler_setting, r.e_nestabila==="jā" && "E nestabils"+(r.e_pakape ? " "+r.e_pakape+"/10" : ""), [r.wire_1,r.wire_2,r.wire_3].filter(Boolean).length && "drāts: "+[r.wire_1,r.wire_2,r.wire_3].filter(Boolean).join(" · ")].filter(Boolean).map(v => `<button class="mchip" onclick="selectedMatch=reeds.find(x=>x.reed_id==='${esc(r.reed_id)}');render()">${esc(v)}</button>`).join("")}</div>
+          <div class="chips">${[r.maker && r.maker !== "Pauls" ? "izgatavotājs: " + r.maker : "", r.cane_manufacturer, r.tube_length && "caurule " + r.tube_length + "mm", r.blade_length && "plāksne " + r.blade_length + "mm", r.metode && "metode: "+r.metode, r.diegs && "diegs: "+r.diegs, r.shape && "shape "+r.shape, r.tip_profiler_setting && "TP "+r.tip_profiler_setting, r.e_nestabila==="jā" && "E nestabils"+(r.e_pakape ? " "+r.e_pakape+"/10" : ""), [r.wire_1,r.wire_2,r.wire_3].filter(Boolean).length && "drāts: "+[r.wire_1,r.wire_2,r.wire_3].filter(Boolean).join(" · ")].filter(Boolean).map(v => `<button class="mchip" onclick="selectedMatch=reeds.find(x=>x.reed_id==='${esc(r.reed_id)}');render()">${esc(v)}</button>`).join("")}</div>
           <div class="txt">reitings: ${hist.map((v,i) => `<span style="${i===hist.length-1?"color:#b45309;font-weight:700":""}">${v}${i<hist.length-1?" → ":""}</span>`).join("")}${hist.length?"":"–"}${hist.length?"/10":""} ${sparkline(hist)}</div>
           ${r.log.length ? `<div class="txt" style="font-style:italic;margin-top:6px;color:#78716c">"${esc(r.log[r.log.length-1].text).slice(0,120)}"</div>` : ""}
         </div>`;
@@ -1476,6 +1480,8 @@ function render() {
         <div style="margin-top:10px">
           <label>metode (kā taisīja blanku)</label>
           <div class="chips">${METODES.map(mm => `<button class="chip ${r.metode===mm?"on":""}" onclick="editField('metode','${mm}');render()">${mm}</button>`).join("")}</div>
+          <label>diegs — ar ko līmēts (rezonances tests)</label>
+          <div class="chips">${DIEGI.map(d => `<button class="chip ${r.diegs===d?"on":""}" onclick="editField('diegs','${d}');render()">${d}</button>`).join("")}</div>
           ${field("shape","shape","piem. 9")}
           <div style="margin-bottom:10px">
             <label style="margin:0 0 2px">cane_manufacturer</label>
@@ -1758,7 +1764,7 @@ function enterEdit(id) {
   const r = reeds.find(x => x.reed_id === id);
   editBaseline = r ? JSON.parse(JSON.stringify(r.m)) : [];
   editBaselineE = r ? { nest: r.e_nestabila, pak: r.e_pakape } : {};
-  editBaselineF = r ? { wire_1: r.wire_1 || "", wire_2: r.wire_2 || "", wire_3: r.wire_3 || "", status: r.status || "", reitings_tagad: String(r.reitings_tagad ?? ""), reitings_sakumā: String(r.reitings_sākumā ?? ""), metode: r.metode || "", tip_profiler_setting: r.tip_profiler_setting || "", maker: r.maker || "Pauls", tube_length: r.tube_length || "", blade_length: r.blade_length || "" } : {};
+  editBaselineF = r ? { wire_1: r.wire_1 || "", wire_2: r.wire_2 || "", wire_3: r.wire_3 || "", status: r.status || "", reitings_tagad: String(r.reitings_tagad ?? ""), reitings_sakumā: String(r.reitings_sākumā ?? ""), metode: r.metode || "", diegs: r.diegs || "", tip_profiler_setting: r.tip_profiler_setting || "", maker: r.maker || "Pauls", tube_length: r.tube_length || "", blade_length: r.blade_length || "" } : {};
   view = "edit"; render();
 }
 function saveEdit() {

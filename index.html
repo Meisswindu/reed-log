@@ -85,7 +85,7 @@
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v55</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v56</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -288,7 +288,7 @@ function profilePlot(r) {
   return `<div style="margin-top:10px">
     <svg viewBox="0 0 300 110" style="width:100%;max-width:420px;background:#fafaf9;border:1px solid #e7e5e4;border-radius:8px">
       ${[0,0.25,0.5,0.75,1].map(t => `<line x1="10" x2="290" y1="${12 + t*78}" y2="${12 + t*78}" stroke="#eee" stroke-width="1"/>`).join("")}
-      ${(() => { const TGT = { "4":50, "8":70, "12":80, "16":85, "20":90, "24":95 }; const tp = pts.map((p, i) => (TGT[String(p).trim()] !== undefined ? `${xs[i]},${y(TGT[String(p).trim()])}` : null)).filter(Boolean); return tp.length >= 2 ? `<path d="M${tp.join(" L")}" fill="none" stroke="#16a34a" stroke-width="1.4" stroke-dasharray="3 4" opacity="0.8"/>` : ""; })()}
+      ${(() => { const TGT = { "4":50, "8":70, "12":80, "16":85, "20":90, "24":95 }; const tp = pts.map((p, i) => (TGT[String(p).trim()] !== undefined ? `${xs[i]},${y(TGT[String(p).trim()])}` : null)).filter(Boolean); const DAVID = { "4":55, "8":65, "12":70, "16":80, "20":85, "24":90 }; const dp = pts.map((p, i) => (DAVID[String(p).trim()] !== undefined ? `${xs[i]},${y(DAVID[String(p).trim()])}` : null)).filter(Boolean); return (tp.length >= 2 ? `<path d="M${tp.join(" L")}" fill="none" stroke="#16a34a" stroke-width="1.4" stroke-dasharray="3 4" opacity="0.8"/>` : "") + (dp.length >= 2 ? `<path d="M${dp.join(" L")}" fill="none" stroke="#ca8a04" stroke-width="1.2" stroke-dasharray="1 3" opacity="0.7"/>` : ""); })()}
       <path d="${ok("left")}" fill="none" stroke="#1d4ed8" stroke-width="2.2"/>
       <path d="${ok("right")}" fill="none" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="5 3"/>
       ${xs.map((x, i) => `<text x="${x}" y="104" text-anchor="middle" font-size="8" fill="#78716c">${pts[i]}</text>`).join("")}
@@ -296,7 +296,7 @@ function profilePlot(r) {
       ${all.map((row, i) => row.right !== "" ? `<circle cx="${xs[i]}" cy="${y(Number(row.right))}" r="2.5" fill="#ea580c"/>` : "").join("")}
     </svg>
     <div style="font-size:10px;color:#78716c;margin-top:4px">
-      <span style="color:#1d4ed8">━ 1. puse</span> &nbsp; <span style="color:#ea580c">╌╌ 2. puse</span> · T (tips) pa kreisi, L (spals) pa labi — kalna profils · <span style="color:#16a34a">╌╌ taught target (50/70/80/85/90/95)</span>
+      <span style="color:#1d4ed8">━ 1. puse</span> &nbsp; <span style="color:#ea580c">╌╌ 2. puse</span> · T (tips) pa kreisi, L (spals) pa labi — kalna profils · <span style="color:#16a34a">╌╌ taught target (50/70/80/85/90/95)</span> · <span style="color:#ca8a04">┈ Davidsson (55/65/70/80/85/90)</span>
     </div>
   </div>`;
 }
@@ -334,6 +334,8 @@ function profileCompare(a, b) {
   }).join("");
   const TGT = { "4": 50, "8": 70, "12": 80, "16": 85, "20": 90, "24": 95 };
   const tp = union.map((p, i) => TGT[String(p).trim()] !== undefined ? `${xs[i]},${y(TGT[String(p).trim()])}` : null).filter(Boolean);
+  const DAVID = { "4": 55, "8": 65, "12": 70, "16": 80, "20": 85, "24": 90 };
+  const dp = union.map((p, i) => DAVID[String(p).trim()] !== undefined ? `${xs[i]},${y(DAVID[String(p).trim()])}` : null).filter(Boolean);
   const diffRows = union.map(p => {
     const va = cmpAvgAt(a, p), vb = cmpAvgAt(b, p);
     if (va == null || vb == null) return "";
@@ -344,12 +346,13 @@ function profileCompare(a, b) {
     <svg viewBox="0 0 300 110" style="width:100%;max-width:420px;background:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;margin-top:8px">
       ${[0, 0.25, 0.5, 0.75, 1].map(t => `<line x1="10" x2="290" y1="${12 + t * 78}" y2="${12 + t * 78}" stroke="#eee" stroke-width="1"/>`).join("")}
       ${tp.length >= 2 ? `<path d="M${tp.join(" L")}" fill="none" stroke="#16a34a" stroke-width="1.4" stroke-dasharray="3 4" opacity="0.8"/>` : ""}
+      ${dp.length >= 2 ? `<path d="M${dp.join(" L")}" fill="none" stroke="#ca8a04" stroke-width="1.2" stroke-dasharray="1 3" opacity="0.7"/>` : ""}
       ${lines(a, "#1d4ed8")}
       ${lines(b, "#ea580c")}
       ${xs.map((x, i) => `<text x="${x}" y="104" text-anchor="middle" font-size="8" fill="#78716c">${union[i]}</text>`).join("")}
     </svg>
     <div style="font-size:10px;color:#78716c;margin-top:4px">
-      <span style="color:#1d4ed8">━ ${esc(a.reed_id)}</span> &nbsp; <span style="color:#ea580c">━ ${esc(b.reed_id)}</span> · svītrotais = 2. puse · <span style="color:#16a34a">╌╌ taught target</span>
+      <span style="color:#1d4ed8">━ ${esc(a.reed_id)}</span> &nbsp; <span style="color:#ea580c">━ ${esc(b.reed_id)}</span> · svītrotais = 2. puse · <span style="color:#16a34a">╌╌ taught target</span> · <span style="color:#ca8a04">┈ Davidsson</span>
     </div>
     ${diffRows ? `<table style="width:100%;margin-top:8px;font-size:11px;border-collapse:collapse">
       <tr style="color:#78716c"><th style="padding:2px 8px;text-align:left">punkts</th><th>${esc(a.reed_id)}</th><th>${esc(b.reed_id)}</th><th>Δ</th></tr>

@@ -85,7 +85,7 @@
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v58</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v59</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -369,8 +369,9 @@ function profileCompare(a, b) {
     </table>` : ""}
     <div class="sub" style="font-size:11px;margin-top:6px">Δ = ${esc(b.reed_id)} − ${esc(a.reed_id)} · sarkanais ≥ +3 (smagāks par pirmo), zaļais ≤ −3 (viegāks par pirmo)</div>`;
 }
-let wiz = { reed: null, problem: null, plan: [], step: 0, results: [], tests: {}, phase: "pick" };
-const WIZ_PROBLEMS = [["einstab","🎵 E nestabils / Mī problēmas"],["unresp","🥱 Sākumi / atsauksme"],["stuffy","👶 Smaga / stuffy"],["mushy","🫠 Mīksta / bez pretspiediena"],["weak","🍂 Vāja skaņa"],["flat","📉 Par zemu (flat)"],["sharp","📈 Par augstu (sharp)"],["freeblow","💨 Par brīva"]];
+let wiz = { reed: null, phase: "pick", cat: null, mode: null, axes: {}, path: [], tests: {}, done: [], fix: null, fixKey: null, q: "", opts: [], hist: [] };
+const WIZ_CATS = [["intonation","🎼 Intonation"],["response","⚡ Response"],["resistance","🌬️ Resistance"],["strength","💪 Strength"],["tone","✨ Tone / Resonance"]];
+const WIZ_MORE = [["chronic","🔁 Chronic issue"],["registers","📚 Reģistri"],["philosophy","🧠 Kasisāšanas filozofija"]];
 // Craypo/Kamins "Indicator Notes" battery (CYOA book Part 2, pp. 17–21) — canary notes per problem.
 // Each: t = test name, q = what a POSITIVE result means, z = zone to work, res = book's predicted result.
 const WIZ_TESTS = {
@@ -497,6 +498,7 @@ function diagnose(r, sym) {
     out.push({ t: "Clip the tip", z: "tip", b: "The classic fix for a flat reed — start with ~0.5–1mm and re-check.", src: "Popkin & McKaig, 'Bassoon Reed Making' — the standard first remedy for flat pitch" });
     out.push({ t: "Check wire 1 position/tension", b: "Pulling the first wire toward the collar raises the pitch.", src: "Weait, 'Bassoon Reed Making' — wire adjustment chapter" });
     if (hasData && valAt(r,"T") !== null) out.push({ t: "Is the tip too thin?", b: `Your T value: ${valAt(r,"T")}. A too-thin tip with a wide aperture = flat pitch.`, src: "Reasoned from general practice — not tied to a specific source" });
+
   }
   if (sym.sharp) {
     out.push({ t: "Thin the shoulder/back zone (4–8mm) rather than the very tip", z: "back", b: "High pitch often comes from an over-stiff reed — taking a little wood from the middle usually lowers it.", src: "General practice — scrape order advice appears in most method books" });
@@ -997,6 +999,7 @@ let wireSel = { wire: null, action: null };
 let wireTo = "";
 
 function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.style.display = "block"; setTimeout(() => t.style.display = "none", 2500); }
+
 function syncFail(msg) { const b = document.getElementById("syncbar"); b.textContent = "⚠️ Nav saglabāts GitHub: " + msg + " — spied šeit, lai aizvērtu"; b.style.display = "block"; }
 async function pushToGithub(r, what) {
   if (!cfg.token) return;
@@ -1056,48 +1059,346 @@ function wireText() {
   return t + ".";
 }
 
-function wizPickProblem(k) {
-  const r = reeds.find(x => x.reed_id === wiz.reed);
-  wiz.problem = k;
-  wiz.plan = r ? diagnose(r, { [k]: true }) : [];
-  wiz.step = 0; wiz.results = [];
-  wiz.tests = {};
-  wiz.phase = (WIZ_TESTS[k] && WIZ_TESTS[k].length) ? "tests" : (wiz.plan.length ? "act" : "done");
+// WIZ_PAGES — Craypo/Kamins CYORMA decision-tree destination pages (combo key = pitch|strength|resistance).
+const WIZ_PAGES = {
+  "sharp|strong|stuffy": {
+    goal: "Flatter and more free blowing, without losing strength",
+    plan: "Remove cane in the front and middle thirds, closer to the spine. This combo is a common symptom of cane that does not hold the trim.",
+    work: ["Check the critical point and overall length first", "Front third, closer to the spine", "Middle third, closer to the spine", "Still sharp? Flatten the 1st wire a touch"],
+    z: ["tip", "heart", "spine"], src: "Craypo CYORMA: sharp+strong+stuffy"
+  },
+  "sharp|strong|freblow": {
+    goal: "Flatter with more resistance, keep the strength",
+    plan: "Remove cane for flat and ease; steepen the tapers in the front third for resistance. Work all over, keep the back strong.",
+    work: ["Front third for flat", "Steepen front-third tapers toward the rails", "Keep the back strong — do not touch"],
+    z: ["tip", "wings", "rails"], src: "Craypo CYORMA: sharp+strong+free blowing"
+  },
+  "sharp|weak|stuffy": {
+    rip: true, msg: "Bad cane (Day 3+) or unbalanced construction. Sharp + weak + stuffy are not complementary objectives — do not waste your time.", src: "Craypo CYORMA: sharp+weak+stuffy"
+  },
+  "sharp|weak|freblow": {
+    rip: true, msg: "Bad cane. Sharp + weak + free blowing means the cane will not hold a trim — this reed will never work.", src: "Craypo CYORMA: sharp+weak+free blowing"
+  },
+  "flat|strong|freblow": {
+    goal: "Sharper, with more resistance",
+    plan: "Steeper tapers; work mostly the middle third, closer to the rails.",
+    work: ["Middle third, closer to the rails", "Steepen the center-to-side taper", "Re-check F2 and short Eb3 after each pass"],
+    z: ["channels", "rails", "heart"], src: "Craypo CYORMA: flat+strong+free blowing"
+  },
+  "flat|strong|stuffy": {
+    goal: "Honest answer: you're screwed",
+    plan: "Narrow the flare with sandpaper so the rails seem thicker — the reed will seem stronger, sharper and more resistant. This is a last resort; the book says probably give up.",
+    work: ["Sandpaper the flare — tiny passes, both sides evenly", "If it doesn't respond to this, give up"],
+    z: ["rails"], src: "Craypo CYORMA: flat+strong+stuffy"
+  },
+  "flat|weak|freblow": {
+    goal: "Sharper, stronger, better resistance",
+    plan: "Steeper tapers overall, mostly in the front third toward the rails (typical for soft cane). Round the tube. Clip only as a last ditch.",
+    work: ["Steepen front-third tapers toward the rails", "Round the 1st wire (check E3/C#3)", "Clip only as a last resort"],
+    z: ["tip", "wings", "rails"], src: "Craypo CYORMA: flat+weak+free blowing"
+  },
+  "flat|weak|stuffy": {
+    rip: true, msg: "Bad cane or unbalanced construction. Flat + weak + stuffy are not complementary objectives.", src: "Craypo CYORMA: flat+weak+stuffy"
+  },
+  "unstable|strong|freblow": {
+    goal: "More stable, with more resistance",
+    plan: "Remove cane for ease, steepen the tapers for stability. Work the channels in the middle and front thirds, toward the rails.",
+    work: ["Channels, middle and front thirds", "Steepen tapers toward the rails", "Eb4/D4 check after each pass (very small increments)"],
+    z: ["channels", "rails", "heart"], src: "Craypo CYORMA: unstable+strong+free blowing"
+  },
+  "unstable|strong|stuffy": {
+    goal: "More stable and more free blowing",
+    plan: "Remove cane for ease, steepen the tapers for stability. Work the channels and closer to the spine for free blowing — middle and front thirds.",
+    work: ["Channels, middle and front thirds", "Closer to the spine for free blowing", "Keep the tip bevel's 45° intact"],
+    z: ["channels", "spine", "heart"], src: "Craypo CYORMA: unstable+strong+stuffy"
+  },
+  "unstable|weak|freblow": {
+    goal: "More stable, stronger, better resistance",
+    plan: "Steeper tapers in all elements, closer to the rails. Round the tube. Clip as a last ditch.",
+    work: ["Steepen all tapers, closer to the rails", "Round the tube — E3/C#3 sag check", "Watch the rate of change: will it hold the trim?"],
+    z: ["tip", "rails", "channels"], src: "Craypo CYORMA: unstable+weak+free blowing"
+  },
+  "unstable|weak|stuffy": {
+    rip: true, msg: "Bad cane. Unstable + weak + stuffy are not complementary objectives — do not waste your time.", src: "Craypo CYORMA: unstable+weak+stuffy"
+  },
+  "just-stuffy": {
+    goal: "A bit more free blowing",
+    plan: "Remove very little cane, in one specific small zone. Do not re-balance the whole reed.",
+    work: ["Find the one small zone that matters", "Very few strokes — observe before continuing"],
+    z: ["heart"], src: "Craypo CYORMA: just stuffy (otherwise good)"
+  },
+  "just-freblow": {
+    goal: "A bit more resistance",
+    plan: "Steeper tapers, closer to the rails — very little cane. Check the rate of change: will this reed age into resistance on its own?",
+    work: ["Steepen rail tapers, minimal cane", "If it will age into resistance anyway — leave it alone"],
+    z: ["rails"], src: "Craypo CYORMA: just free blowing (otherwise good)"
+  },
+  "unresp": {
+    goal: "Better response — but know when to stop",
+    plan: "Response is intrinsic to the piece of cane (F#3 test). Define the thumbnail and taper to the tip. MOST REEDS DO NOT RESPOND WELL — don't sacrifice intonation, strength and resonance in the futile search for perfect response.",
+    work: ["F#3 → niente: how far can you taper in tune?", "Define the thumbnail, taper to the tip corners", "If it needs too much embouchure: brush the middle half, keep tapers", "Know when to stop"],
+    z: ["tip", "wings", "heart"], src: "Craypo/Kamins: Response (F#3 cane-quality canary)"
+  },
+  "tooresp": {
+    goal: "More resistance, calmer response",
+    plan: "Make the tapers steeper and closer to the rails; check the rails-vs-spine balance. A touch of back work if the tenor is thin.",
+    work: ["Steepen tapers toward the rails", "Rails vs spine balance check", "Tenor thin? Small back work"],
+    z: ["rails", "back"], src: "Craypo CYORMA: too responsive"
+  },
+  "tone": {
+    info: true,
+    goal: "Tone / Resonance",
+    plan: "Tone is subjective; resonance is semi-objective. Tenor substance comes from cane in the back.",
+    work: ["Darker: flatten the collar-to-tip taper in the front third, a minuscule amount", "Brighter: tiny work on the tip bevel structure", "Tenor substance lives in the back of the reed"],
+    z: [], src: "Craypo/Kamins: Tone & Resonance"
+  },
+  "chronic-sharp": {
+    info: true,
+    goal: "Chronic sharpness: finish your reeds",
+    plan: "Always-sharp reeds are usually unfinished — too heavy overall. Don't play on cane that won't hold the trim.",
+    work: ["Finish the reed (complete the Day 1 scrape)", "Equipment level: wider shape, shorter/deeper internal bevel, longer bocal", "Don't keep reeds that won't hold the trim"],
+    z: [], src: "Craypo CYORMA: chronic fixes"
+  },
+  "chronic-flat": {
+    info: true,
+    goal: "Chronic flatness: front third structure",
+    plan: "Always flat = front third poorly structured, or too thin near the spine.",
+    work: ["Check the side of the reed, length, profile", "Front third too thin near the spine? Balance around it", "Equipment level: narrower shape, longer/shallower bevel, shorter bocal"],
+    z: ["tip", "spine"], src: "Craypo CYORMA: chronic fixes"
+  },
+  "chronic-strong": {
+    info: true,
+    goal: "Always too strong: finish your reeds",
+    plan: "Check profiler and gouger measurements, and micrometer accuracy. A dull profiler blade compresses cane — it measures thicker after re-soaking.",
+    work: ["Finish the reed before judging it", "Check profiler blade sharpness", "Verify micrometer zero and measurement spots"],
+    z: [], src: "Craypo CYORMA: chronic fixes"
+  },
+  "chronic-weak": {
+    info: true,
+    goal: "Always too weak: front third near the spine",
+    plan: "Front third too thin near the spine. Some profilers remove too much from the channels vs the spine — set a thicker blank.",
+    work: ["Check front third thickness near the spine", "Compare channels vs spine removal on your profiler", "Set a thicker blank and finish it by hand"],
+    z: ["tip", "spine"], src: "Craypo CYORMA: chronic fixes"
+  },
+  "registers": {
+    info: true,
+    goal: "Register tendencies",
+    plan: "Each register has its own construction signature.",
+    work: ["Low (Bb1–F2): tends sharp — favor a wider/longer reed, flatter tube. F2 sharp = front third heavy", "Middle (G2–Ab3): mixed — front third structure + middle third balance are crucial", "Tenor (A3–Ab4): tends FLAT — many bocals are too flat here; needs narrower/shorter/rounder. Response issues → tip bevel. Weak tenor = rails too thick vs spine", "High (A4–E5): tip bevel + front third + strong back"],
+    z: [], src: "Craypo CYORMA: register guides"
+  },
+  "philosophy": {
+    info: true,
+    goal: "Scraping philosophy (pp. 70–71)",
+    plan: "One change at a time. Observe the result before the next trim. Work with the break-in period.",
+    work: ["If the reed doesn't respond to a trim, or loses the trim within a short time = THIS REED WILL NEVER WORK = RIP = don't waste your time", "Sketch trims in pencil and follow exactly; limit file strokes", "Harder cane can be scraped more thinly; better cane responds to smaller trims", "Use the degree of observed change to determine the degree of the next change", "\"All good reeds are alike; each bad reed is bad in its own way.\" ~ Leonard Tolstoy Sharrow"],
+    z: [], src: "Craypo CYORMA: scraping philosophy"
+  }
+};
+function wizStart(id) {
+  if (!id) return;
+  wiz.reed = id;
+  wizReset();
+  wiz.phase = "cat";
   render();
+}
+function wizReset() {
+  wiz.cat = null; wiz.mode = null; wiz.axes = {}; wiz.path = []; wiz.tests = {};
+  wiz.done = []; wiz.fix = null; wiz.fixKey = null; wiz.q = ""; wiz.opts = []; wiz.hist = [];
+}
+function wizResetReed() {
+  wiz.reed = null;
+  wizReset();
+  wiz.phase = "pick";
+  render();
+}
+function wizRestart() {
+  const id = wiz.reed;
+  wizReset();
+  wiz.reed = id;
+  wiz.phase = "cat";
+  render();
+}
+function wizSnap() {
+  wiz.hist.push(JSON.stringify({ phase: wiz.phase, cat: wiz.cat, mode: wiz.mode, axes: wiz.axes, path: wiz.path.slice(), q: wiz.q, opts: wiz.opts.slice(), fixKey: wiz.fixKey, fix: wiz.fix }));
+  if (wiz.hist.length > 30) wiz.hist.shift();
+}
+function wizBack() {
+  if (!wiz.hist || !wiz.hist.length) return;
+  const s = JSON.parse(wiz.hist.pop());
+  Object.assign(wiz, s);
+  render();
+}
+function wizCat(k) {
+  wizSnap();
+  wiz.cat = k;
+  wiz.fix = null; wiz.fixKey = null; wiz.tests = {}; wiz.done = [];
+  wiz.path = [(WIZ_CATS.concat(WIZ_MORE).find(c => c[0] === k) || [k, k])[1]];
+  if (k === "tone" || k === "registers" || k === "philosophy") {
+    wiz.fix = WIZ_PAGES[k];
+    wiz.phase = "fixit";
+    render(); return;
+  }
+  if (k === "chronic") {
+    wiz.mode = "chronic";
+    wiz.q = "Kura hroniskā problēma?";
+    wiz.opts = [["sharp", "📈 Vienmēr par augstu"], ["flat", "📉 Vienmēr par zemu"], ["strong", "💪 Vienmēr par stipru"], ["weak", "🍂 Vienmēr par vāju"]];
+    wiz.phase = "branch";
+    render(); return;
+  }
+  if (k === "intonation") {
+    wiz.mode = "intonation";
+    wiz.q = "Intonācija: kas notiek?";
+    wiz.opts = [["sharp", "📈 Par augstu (sharp)"], ["flat", "📉 Par zemu (flat)"], ["unstable", "🎯 Nestabila (E/C# sag)"]];
+  } else if (k === "resistance") {
+    wiz.mode = "resistance";
+    wiz.q = "Pretestība?";
+    wiz.opts = [["stuffy", "👶 Stuffy (kafijas salmiņš)"], ["freblow", "💨 Free blowing (milkshake salmiņš)"]];
+  } else if (k === "strength") {
+    wiz.mode = "strength";
+    wiz.q = "Stiprums?";
+    wiz.opts = [["strong", "💪 Par stipru"], ["weak", "🍂 Par vāju"], ["none", "🔁 Hronisks stiprums/vājums"]];
+  } else if (k === "response") {
+    wiz.mode = "resp";
+    wiz.q = "Atsauksme?";
+    wiz.opts = [["unresp", "🥱 Neatsaucas / smagi sākumi"], ["tooresp", "🌪️ Pārāk brīva / savvaļīga"]];
+  }
+  wiz.phase = "branch";
+  render();
+}
+function wizChoose(k) {
+  wizSnap();
+  const L = { sharp: "📈 Sharp", flat: "📉 Flat", unstable: "🎯 Nestabila", stuffy: "👶 Stuffy", freblow: "💨 Free blowing", strong: "💪 Stipra", weak: "🍂 Vāja", unresp: "🥱 Neatsaucas", tooresp: "🌪️ Pārāk brīva" }[k] || k;
+  wiz.path.push(L);
+  if (wiz.mode === "chronic") {
+    wiz.fix = WIZ_PAGES["chronic-" + k];
+    wiz.fixKey = "chronic-" + k;
+    wiz.phase = "fixit";
+    render(); return;
+  }
+  if (wiz.mode === "intonation") {
+    wiz.axes.pitch = k;
+    wiz.mode = "intonation2";
+    wiz.q = "Cik stipra ir mēle?";
+    wiz.opts = [["strong", "💪 Stipra"], ["weak", "🍂 Vāja"], ["none", "🔁 Hronisks (vienmēr tā)"]];
+    wiz.phase = "branch";
+    render(); return;
+  }
+  if (wiz.mode === "intonation2") {
+    if (k === "none") { wiz.fix = WIZ_PAGES["chronic-" + wiz.axes.pitch]; wiz.fixKey = "chronic-" + wiz.axes.pitch; wiz.phase = "fixit"; render(); return; }
+    wiz.axes.strength = k;
+    wiz.mode = "intonation3";
+    wiz.q = "Pretestība?";
+    wiz.opts = [["stuffy", "👶 Stuffy"], ["freblow", "💨 Free blowing"]];
+    wiz.phase = "branch";
+    render(); return;
+  }
+  if (wiz.mode === "intonation3") {
+    wiz.axes.resistance = k;
+    wizFinishCombo();
+    render(); return;
+  }
+  if (wiz.mode === "resistance") {
+    wiz.axes.resistance = k;
+    wiz.mode = "resistance2";
+    wiz.q = "Un intonācija?";
+    wiz.opts = [["sharp", "📈 Sharp"], ["flat", "📉 Flat"], ["unstable", "🎯 Nestabila"], ["none", "— citādi laba"]];
+    wiz.phase = "branch";
+    render(); return;
+  }
+  if (wiz.mode === "resistance2") {
+    if (k === "none") { wiz.fix = WIZ_PAGES["just-" + wiz.axes.resistance]; wiz.fixKey = "just-" + wiz.axes.resistance; wiz.phase = "fixit"; render(); return; }
+    wiz.axes.pitch = k;
+    wiz.mode = "resistance3";
+    wiz.q = "Cik stipra ir mēle?";
+    wiz.opts = [["strong", "💪 Stipra"], ["weak", "🍂 Vāja"]];
+    wiz.phase = "branch";
+    render(); return;
+  }
+  if (wiz.mode === "resistance3") {
+    wiz.axes.strength = k;
+    wizFinishCombo();
+    render(); return;
+  }
+  if (wiz.mode === "strength") {
+    if (k === "none") { wiz.mode = "chronic"; wiz.q = "Kura hroniskā problēma?"; wiz.opts = [["sharp", "📈 Vienmēr par augstu"], ["flat", "📉 Vienmēr par zemu"], ["strong", "💪 Vienmēr par stipru"], ["weak", "🍂 Vienmēr par vāju"]]; wiz.phase = "branch"; render(); return; }
+    wiz.axes.strength = k;
+    wiz.mode = "strength2";
+    wiz.q = "Un intonācija?";
+    wiz.opts = [["sharp", "📈 Sharp"], ["flat", "📉 Flat"], ["unstable", "🎯 Nestabila"], ["none", "— citādi laba"]];
+    wiz.phase = "branch";
+    render(); return;
+  }
+  if (wiz.mode === "strength2") {
+    if (k === "none") { wiz.fix = WIZ_PAGES["chronic-" + wiz.axes.strength]; wiz.fixKey = "chronic-" + wiz.axes.strength; wiz.phase = "fixit"; render(); return; }
+    wiz.axes.pitch = k;
+    wiz.mode = "strength3";
+    wiz.q = "Pretestība?";
+    wiz.opts = [["stuffy", "👶 Stuffy"], ["freblow", "💨 Free blowing"]];
+    wiz.phase = "branch";
+    render(); return;
+  }
+  if (wiz.mode === "strength3") {
+    wiz.axes.resistance = k;
+    wizFinishCombo();
+    render(); return;
+  }
+  if (wiz.mode === "resp") {
+    wiz.fix = WIZ_PAGES[k];
+    wiz.fixKey = k;
+    wiz.phase = "fixit";
+    render(); return;
+  }
+}
+function wizFinishCombo() {
+  wiz.fixKey = [wiz.axes.pitch, wiz.axes.strength, wiz.axes.resistance].join("|");
+  wiz.fix = WIZ_PAGES[wiz.fixKey];
+  wiz.phase = "fixit";
+}
+function wizFixTests(f) {
+  if (!f || f.rip || f.info) return [];
+  const keys = [];
+  const a = wiz.axes;
+  if (a.pitch === "sharp") keys.push("sharp");
+  else if (a.pitch === "flat") keys.push("flat");
+  else if (a.pitch === "unstable") keys.push("einstab");
+  if (a.resistance === "stuffy") keys.push("stuffy");
+  else if (a.resistance === "freblow") keys.push("freeblow");
+  if (a.strength === "weak") keys.push("weak");
+  if (wiz.cat === "response") keys.push("unresp");
+  if (wiz.fixKey === "just-stuffy") keys.push("stuffy");
+  if (wiz.fixKey === "just-freblow") keys.push("freeblow");
+  const out = [];
+  keys.forEach(k => (WIZ_TESTS[k] || []).forEach(t => out.push(t)));
+  return out.slice(0, 5);
 }
 function wizTest(testKey, v) {
   wiz.tests[testKey] = wiz.tests[testKey] === v ? null : v;
   render();
 }
-function wizTestsDone() {
+function wizLogTests() {
   const r = reeds.find(x => x.reed_id === wiz.reed);
-  const label = (WIZ_PROBLEMS.find(p => p[0] === wiz.problem) || [])[1] || wiz.problem;
-  const answered = Object.entries(wiz.tests).filter(([, v]) => v);
+  const tests = wizFixTests(wiz.fix);
+  const answered = Object.entries(wiz.tests).filter(([, v]) => v === "jā" || v === "nē");
   if (r && answered.length) {
-    r.log.push({ stamp: nowStamp(), rating: null, text: `🎯 Tests (${label}): ${answered.map(([t, v]) => `${t} — ${v}`).join("; ")}` });
+    r.log.push({ stamp: nowStamp(), rating: null, text: `🎯 Tests (${wiz.path.join(" → ")}): ${answered.map(([t, v]) => { const x = tests[+String(t).slice(1)]; return `${x ? x.t : "tests"} — ${v}`; }).join("; ")}` });
     persist();
-    pushToGithub(r, "diagnozes vednis: tests");
+    pushToGithub(r, "vednis: tests");
+    toast("📝 Testi pierakstīti ✓");
   }
-  wiz.phase = wiz.plan.length ? "act" : "done";
   render();
 }
-function wizSkip() {
-  wiz.step++;
-  if (wiz.step >= wiz.plan.length) wiz.phase = "done";
-  render();
-}
-function wizVerdict(v) {
+function wizVerdict2(v) {
   const r = reeds.find(x => x.reed_id === wiz.reed);
-  const s = wiz.plan[wiz.step];
-  const label = (WIZ_PROBLEMS.find(p => p[0] === wiz.problem) || [])[1] || wiz.problem;
-  if (r && s) {
-    r.log.push({ stamp: nowStamp(), rating: null, text: `🎯 Diagnoze (${label}): ${s.t} → ${v}` });
-    wiz.results.push({ t: s.t, v });
+  const f = wiz.fix;
+  const label = wiz.path.join(" → ");
+  if (r && f) {
+    r.log.push({ stamp: nowStamp(), rating: null, text: `🎯 Vednis (${label}): ${f.goal} → ${v}` });
+    wiz.done.push({ t: f.goal, v });
     persist();
-    pushToGithub(r, "diagnozes vednis");
+    pushToGithub(r, "vednis: verdikts");
   }
-  wiz.step++;
-  wiz.phase = wiz.step < wiz.plan.length ? "act" : "done";
+  wiz.phase = "end";
   render();
 }
 function wizLogRest() {
@@ -1108,7 +1409,8 @@ function wizLogRest() {
     pushToGithub(r, "diagnozes vednis");
     toast("🌙 Ierakstīts: atpūsties līdz rītdienai ✓");
   }
-  wiz.reed = null; wiz.problem = null; wiz.plan = []; wiz.step = 0; wiz.results = []; wiz.tests = {}; wiz.phase = "pick";
+  wiz.reed = null;
+  wizReset();
   render();
 }
 function wizRip() {
@@ -1120,7 +1422,8 @@ function wizRip() {
     pushToGithub(r, "diagnozes vednis: RIP");
     toast("💀 Mēle atslēgta ✓");
   }
-  wiz.reed = null; wiz.problem = null; wiz.plan = []; wiz.step = 0; wiz.results = []; wiz.tests = {}; wiz.phase = "pick";
+  wiz.reed = null;
+  wizReset();
   render();
 }
 
@@ -1197,6 +1500,7 @@ function render() {
       <div class="card"><b style="font-size:13px">Pēdējie ieraksti</b>
         ${reeds.flatMap(r => r.log.map(e => ({...e, id:r.reed_id, age:reedAge(r, e.stamp)}))).sort((a,b)=>b.stamp.localeCompare(a.stamp)).slice(0,6).map(e => `
           <div class="entry"><div class="stamp"><span>${esc(e.id)}</span><span>${esc(e.stamp)}${e.age !== null && e.age !== undefined ? ` · diena ${e.age + 1}` : ""}</span></div>
+
           ${e.rating ? `<span class="star">★ ${e.rating}/10</span>` : ""}<div class="txt">${esc(e.text)}</div></div>`).join("") || "<p class='txt'>Vēl nav ierakstu.</p>"}
       </div>`;
   }
@@ -1577,84 +1881,102 @@ function render() {
   }
   else if (view === "vednis") {
     const r = reeds.find(x => x.reed_id === wiz.reed);
-    const probLabel = (WIZ_PROBLEMS.find(p => p[0] === wiz.problem) || [])[1] || wiz.problem || "";
+    const label = wiz.path.length ? wiz.path.join(" → ") : "";
     app.innerHTML = `
     <div class="card">
-      <b style="font-size:14px">🎯 Diagnozes vednis</b>
-      <div class="sub" style="font-size:11px;margin-top:4px">Izvēlies mēli → problēmu → ieteikumu darīt → verdikts. Viss aiziet Log kā struktūrēts ieraksts.</div>
+      <b style="font-size:14px">🎯 Diagnozes vednis — CYORMA</b>
+      <div class="sub" style="font-size:11px;margin-top:4px">Pēc Craypo/Kamins CYOA grāmatas: kategorija → novērojumi → Goal/Plan → verdikts. Viss aiziet Log kā struktūrēts ieraksts.</div>
       ${wiz.phase === "pick" ? `
       <label style="margin-top:12px">1. Kura mēle?</label>
-      <select onchange="wiz.reed=this.value;wiz.phase=this.value?'problem':'pick';render()" style="height:36px;width:100%">
+      <select onchange="wizStart(this.value)" style="height:36px;width:100%">
         <option value="">— izvēlies —</option>
         ${sortedForLibrary().map(x => `<option value="${esc(x.reed_id)}" ${x.reed_id===wiz.reed?"selected":""}>${esc(x.reed_id)} (${esc(x.status)})</option>`).join("")}
       </select>
       ${r && r.m && r.m.length >= 2 ? `<div style="margin-top:10px">${profilePlot(r)}</div>` : ""}
       ` : `
-      <div class="stamp" style="margin-top:10px"><span><b>${esc(wiz.reed)}</b></span><span>${esc(probLabel)}${wiz.plan.length ? ` · solis ${Math.min(wiz.step+1, wiz.plan.length)}/${wiz.plan.length}` : ""}</span></div>
+      <div class="stamp" style="margin-top:10px"><span><b>${esc(wiz.reed)}</b></span><span>${esc(label)}</span></div>
       <div class="chips" style="margin-top:6px">
-        <button class="chip" onclick="wiz.reed=null;wiz.problem=null;wiz.plan=[];wiz.step=0;wiz.results=[];wiz.tests={};wiz.phase='pick';render()">↔︎ Cita mēle</button>
+        <button class="chip" onclick="wizResetReed()">↔︎ Cita mēle</button>
+        ${wiz.hist && wiz.hist.length ? `<button class="chip" onclick="wizBack()">↩︎ Atpakaļ</button>` : ""}
+        <button class="chip" onclick="wizRestart()">🔄 Jauns piedzīvojums</button>
       </div>
-      ${wiz.phase === "problem" ? `
-      <label style="margin-top:12px">2. Kas ir problēma?</label>
-      <div class="chips">${WIZ_PROBLEMS.map(([k,label]) => `<button class="chip" onclick="wizPickProblem('${k}')">${label}</button>`).join("")}</div>
-      ` : wiz.phase === "tests" ? (() => {
-        const tests = WIZ_TESTS[wiz.problem] || [];
-        const answered = Object.entries(wiz.tests).filter(([, v]) => v).length;
+      ${wiz.phase === "cat" ? `
+      <label style="margin-top:12px">2. Kategorija?</label>
+      <div class="chips">${WIZ_CATS.map(([k,l]) => `<button class="chip" onclick="wizCat('${k}')">${l}</button>`).join("")}</div>
+      <label style="margin-top:10px">Vēl:</label>
+      <div class="chips">${WIZ_MORE.map(([k,l]) => `<button class="chip" onclick="wizCat('${k}')">${l}</button>`).join("")}</div>
+      ` : wiz.phase === "branch" ? `
+      <label style="margin-top:12px">${esc(wiz.q)}</label>
+      <div class="chips">${wiz.opts.map(([k,l]) => `<button class="chip" onclick="wizChoose('${k}')">${l}</button>`).join("")}</div>
+      ` : (wiz.phase === "fixit" || wiz.phase === "verdict") && wiz.fix ? (() => {
+        const f = wiz.fix;
+        if (f.rip) { return `
+        <div class="card" style="background:#fee2e2;border-color:#fca5a5;margin-top:10px;margin-bottom:0">
+          <b style="color:#991b1b">💀 RIP — sliktas niedres vai nebalansēta konstrukcija</b>
+          <div class="txt" style="margin-top:6px">${esc(f.msg)}</div>
+          <div class="sub" style="font-size:11px;margin-top:6px;font-style:italic">📚 ${esc(f.src || "")}</div>
+        </div>
+        <div class="chips" style="margin-top:10px">
+          ${r && r.status !== "nolietota" ? `<button class="chip" style="color:#b91c1c" onclick="wizRip()">💀 Atslēgt mēli (RIP)</button>` : ""}
+          <button class="chip" onclick="wizRestart()">🔄 Pārbaudīt citu ceļu</button>
+        </div>`; }
+        if (f.info) { return `
+        <div class="entry" style="margin-top:12px">
+          <div class="txt"><b>🎯 Goal:</b> ${esc(f.goal)}</div>
+          <div class="txt" style="margin-top:4px"><b>🧭 Plan:</b> ${esc(f.plan)}</div>
+          ${f.work && f.work.length ? `<div class="txt" style="margin-top:6px"><b>🔎 Tālāk:</b><ul style="margin:4px 0 0 18px;padding:0">${f.work.map(w => `<li>${esc(w)}</li>`).join("")}</ul></div>` : ""}
+          ${f.z && f.z.length ? `<div style="margin-top:6px">${reedMapSVG(f.z, false, 110)}</div>` : ""}
+          <div class="sub" style="margin-top:4px;font-size:10px;font-style:italic;color:#a8a29e">📚 ${esc(f.src)}</div>
+        </div>
+        <div class="chips" style="margin-top:10px">
+          <button class="chip" onclick="wizRestart()">🔄 Jauns piedzīvojums</button>
+        </div>`; }
+        const tests = wizFixTests(f);
         return `
-        <label style="margin-top:12px">🧪 Indikatora testi <span class="sub">(Craypo/Kamins — "canaries in the coal mine"; atzīmē, kas rezultāts)</span></label>
-        <div class="sub" style="font-size:10px;font-style:italic;margin-top:2px">Spēlē fundamentālos/repertuāra kontekstā — nevis kā izolētus testus.</div>
-        ${tests.map((x, i) => `
-        <div class="entry" style="margin-top:8px">
-          <div class="txt"><b>${esc(x.t)}</b> ${wiz.tests["t"+i] ? `<span class="star" style="font-size:9px">${wiz.tests["t"+i]}</span>` : ""}</div>
-          <div class="sub" style="margin-top:4px">${esc(x.q)}</div>
-          ${x.res ? `<div class="sub" style="margin-top:4px;font-size:10px">➡️ Ja jā, darbs šeit: ${esc(x.res)}</div>` : ""}
-          ${x.z ? `<div style="margin-top:6px">${reedMapSVG([x.z], false, 110)}</div>` : ""}
-          <div class="chips" style="margin-top:6px">
-            <button class="chip ${wiz.tests["t"+i]==="jā"?"on":""}" style="${wiz.tests["t"+i]==="jā"?"":"color:#15803d"}" onclick="wizTest('t${i}','jā')">✅ Jā</button>
+        <div class="entry" style="margin-top:12px">
+          <div class="txt"><b>🎯 Goal:</b> ${esc(f.goal)}</div>
+          <div class="txt" style="margin-top:4px"><b>🧭 Plan:</b> ${esc(f.plan)}</div>
+          ${f.work && f.work.length ? `<div class="txt" style="margin-top:6px"><b>🔎 Finer work:</b><ul style="margin:4px 0 0 18px;padding:0">${f.work.map(w => `<li>${esc(w)}</li>`).join("")}</ul></div>` : ""}
+          ${f.z && f.z.length ? `<div style="margin-top:6px">${reedMapSVG(f.z, false, 110)}</div>` : ""}
+          <div class="sub" style="margin-top:4px;font-size:10px;font-style:italic;color:#a8a29e">📚 ${esc(f.src)}</div>
+        </div>
+        ${tests.length ? `
+        <label style="margin-top:10px">🧪 Indikatora testi (Craypo/Kamins)</label>
+        ${tests.map((x, i) => (wiz.tests["t"+i] === "jā" || wiz.tests["t"+i] === "nē") ? "" : `
+        <div class="entry" style="margin-top:6px">
+          <div class="txt"><b>${esc(x.t)}</b></div>
+          <div class="sub" style="margin-top:2px">${esc(x.q)}</div>
+          <div class="chips" style="margin-top:4px">
+            <button class="chip ${wiz.tests["t"+i]==="jā"?"on":""}" style="color:#15803d" onclick="wizTest('t${i}','jā')">✅ Jā</button>
             <button class="chip ${wiz.tests["t"+i]==="nē"?"on":""}" onclick="wizTest('t${i}','nē')">❌ Nē</button>
           </div>
         </div>`).join("")}
+        ` : ""}
+        ${wiz.phase === "fixit" ? `
         <div class="chips" style="margin-top:10px">
-          <button class="chip on" onclick="wizTestsDone()">➡️ Turpināt uz ieteikumiem${answered ? ` (${answered} atzīmēti)` : ""}</button>
+          <button class="chip on" onclick="wiz.phase='verdict';render()">✅ Izdarīju — verdikts</button>
+          <button class="chip" onclick="wizLogTests()">📝 Pierakstīt testus (bez kasisāšanas)</button>
+          <button class="chip" onclick="wizRestart()">⏭️ Neizmantoju — jauns piedzīvojums</button>
         </div>
-        <div class="sub" style="font-size:11px;margin-top:6px">Atzīmētie testi aizies Log kā ieraksts 🎯 Tests — pozitīvie apstiprina, kur strādāt, pirms kāds ksisāšanas ieteikums.</div>
-        `;
-      })() : wiz.phase === "act" || wiz.phase === "verdict" ? (() => {
-        const s = wiz.plan[wiz.step];
-        if (!s) { return "<p class='txt'>Nav vairāk ieteikumu.</p>"; }
-        return `
-        <div class="entry" style="margin-top:12px">
-          <div class="txt"><b>${esc(s.t)}</b>
-          ${s.b ? `<div class="sub" style="margin-top:4px">${esc(s.b)}</div>` : ""}
-          ${s.src ? `<div class="sub" style="margin-top:4px;font-size:10px;font-style:italic;color:#a8a29e">📚 ${esc(s.src)}</div>` : ""}
-          ${s.z ? `<div style="margin-top:6px">${reedMapSVG(s.z.split(","), false, 110)}</div>` : ""}
-          </div>
-        </div>
-        ${wiz.phase === "act" ? `
-        <div class="chips" style="margin-top:10px">
-          <button class="chip on" onclick="wiz.phase='verdict';render()">✅ Izdarīju</button>
-          <button class="chip" onclick="wizSkip()">⏭️ Nākamais ieteikums</button>
-          <button class="chip" onclick="wiz.phase='done';render()">⏸️ Pietiek — beigt</button>
-        </div>
-        <div class="sub" style="font-size:11px;margin-top:6px">Pirms kasisāšanas: burbuļa tests. Pēc katra soļa: paspēlē un noliec verdiktu — viens solis = viena izmaiņa.</div>
+        <div class="sub" style="font-size:11px;margin-top:6px">Viens solis = viena izmaiņa. Pēc kasisāšanas paspēlē un noliec verdiktu.</div>
         ` : `
-        <label style="margin-top:10px">3. Vai palīdzēja?</label>
+        <label style="margin-top:10px">Vai palīdzēja?</label>
         <div class="chips">
-          <button class="chip" style="color:#15803d" onclick="wizVerdict('labāka')">😊 Labāka</button>
-          <button class="chip" onclick="wizVerdict('tā pati')">😐 Tā pati</button>
-          <button class="chip" style="color:#b91c1c" onclick="wizVerdict('sliktāka')">😖 Sliktāka</button>
+          <button class="chip" style="color:#15803d" onclick="wizVerdict2('labāka')">😊 Labāka</button>
+          <button class="chip" onclick="wizVerdict2('tā pati')">😐 Tā pati</button>
+          <button class="chip" style="color:#b91c1c" onclick="wizVerdict2('sliktāka')">😖 Sliktāka</button>
         </div>
         `}
         `;
-      })() : wiz.phase === "done" ? `
+      })() : wiz.phase === "end" ? `
       <label style="margin-top:12px">Sesijas kopsavilkums</label>
-      ${wiz.results.length ? wiz.results.map(res => `<div class="entry"><div class="txt">${esc(res.t)} <b style="color:${res.v==="labāka"?"#15803d":res.v==="sliktāka"?"#b91c1c":"#78716c"}">→ ${esc(res.v)}</b></div></div>`).join("") : "<p class='txt'>Nekas netika izdarīts.</p>"}
+      ${wiz.done && wiz.done.length ? wiz.done.map(res => `<div class="entry"><div class="txt">${esc(res.t)} <b style="color:${res.v==="labāka"?"#15803d":res.v==="sliktāka"?"#b91c1c":"#78716c"}">→ ${esc(res.v)}</b></div></div>`).join("") : "<p class='txt'>Nekas netika izdarīts.</p>"}
       <div class="chips" style="margin-top:10px">
         <button class="chip" onclick="wizLogRest()">🌙 Pietiek šodien — atpūsties līdz rītdienai</button>
         ${r && r.status !== "nolietota" ? `<button class="chip" style="color:#b91c1c" onclick="wizRip()">💀 RIP — atslēgt mēli</button>` : ""}
-        <button class="chip" onclick="wiz.problem=null;wiz.plan=[];wiz.step=0;wiz.results=[];wiz.phase='problem';render()">🔄 Vēl viena problēma</button>
+        <button class="chip" onclick="wizRestart()">🔄 Vēl viena problēma</button>
       </div>
-      ` : "<p class='txt'>Izvēlies problēmu.</p>"}
+      ` : ""}
       `}
     </div>`;
   }
@@ -1679,6 +2001,7 @@ function render() {
     </div>`;
   }
 }
+
 
 function updM(point, side, val) {
   const f = newForm;

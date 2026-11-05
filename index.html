@@ -85,7 +85,7 @@
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v59</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v60</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -1034,6 +1034,15 @@ function setForm(k, v) {
   if (k === "cane_manufacturer") newForm.reed_id = v ? nextReedId(v) : "…";
   render();
 }
+// updates ONLY the preview panel — never call render() from an input field:
+// a full re-render destroys the focused textarea/input and closes the mobile keyboard (v60 bug fix).
+function updPrev() {
+  if (!newForm) return;
+  const p = document.getElementById("prev");
+  if (p) p.textContent = reedToMarkdown(newForm);
+  const pf = document.getElementById("prevfile");
+  if (pf) pf.textContent = "Priekšskatījums: " + cfg.dir + "/" + newForm.reed_id + ".md";
+}
 
 function saveReed() {
   // a fresh reed's current rating = its starting rating (until re-rated)
@@ -1491,6 +1500,7 @@ function render() {
         <label>Drāts (ja mainīji)</label>
         <div class="chips">${["1. drāti","2. drāti","abas drātis"].map(w => `<button class="chip ${wireSel.wire===w?"on":""}" onclick="wireSel.wire='${w}';render()">${w}</button>`).join("")}</div>
         <div class="chips">${["pievilka","atlaiza","nomainīja"].map(a => `<button class="chip ${wireSel.action===a?"on":""}" onclick="wireSel.action='${a}';render()">${a}</button>`).join("")}</div>
+
         ${wireSel.action === "nomainīja" ? `<input value="${esc(wireTo)}" placeholder="nomainīju uz… (piem. 07 Rieger)" style="margin-bottom:4px" oninput="wireTo=this.value">` : ""}
         <label>Kas notika? (nav obligāti)</label>
         <textarea id="logtext" rows="3" placeholder="piem. Pievilku otro drāti, mī stabils…"></textarea>
@@ -1500,7 +1510,6 @@ function render() {
       <div class="card"><b style="font-size:13px">Pēdējie ieraksti</b>
         ${reeds.flatMap(r => r.log.map(e => ({...e, id:r.reed_id, age:reedAge(r, e.stamp)}))).sort((a,b)=>b.stamp.localeCompare(a.stamp)).slice(0,6).map(e => `
           <div class="entry"><div class="stamp"><span>${esc(e.id)}</span><span>${esc(e.stamp)}${e.age !== null && e.age !== undefined ? ` · diena ${e.age + 1}` : ""}</span></div>
-
           ${e.rating ? `<span class="star">★ ${e.rating}/10</span>` : ""}<div class="txt">${esc(e.text)}</div></div>`).join("") || "<p class='txt'>Vēl nav ierakstu.</p>"}
       </div>`;
   }
@@ -1550,7 +1559,7 @@ function render() {
           }).join("")}
         </details>
         <label>Piezīme par izgatavošanu (nav obligāti)</label>
-        <textarea id="newformcomment" rows="3" placeholder="piem. Vārījot koks mazliet sprakstēja, wire 1 gāja saspringti, sajūtas par mēli taisot…" oninput="newForm.comments = this.value.trim() ? [{stamp: nowStamp(), text: this.value}] : []; render()"></textarea>
+        <textarea id="newformcomment" rows="3" placeholder="piem. Vārījot koks mazliet sprakstēja, wire 1 gāja saspringti, sajūtas par mēli taisot…" oninput="newForm.comments = this.value.trim() ? [{stamp: nowStamp(), text: this.value}] : []; updPrev()"></textarea>
         <button class="primary" onclick="saveReed()" ${f.reed_id==="…"?"disabled":""}>Izveidot ${esc(f.reed_id)}.md</button>
       </div>
       <div class="card"><b id="prevfile" style="font-size:13px">Priekšskatījums: ${esc(cfg.dir)}/${esc(f.reed_id)}.md</b><pre id="prev">${esc(reedToMarkdown(f))}</pre></div>`;
@@ -1992,6 +2001,7 @@ function render() {
         <div class="sub" style="font-size:11px;margin:4px 0 8px">Lejupielādē pilnu JSON kopiju (visas mēles + logi). Glabā kaut kur drošībā — no tās var atjaunot visu.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="primary" onclick="exportBackup()">⬇️ Lejupielādēt backup</button>
+
           <button class="chip" onclick="document.getElementById('importfile').click()">⬆️ Importēt backup</button>
           <input type="file" id="importfile" accept="application/json,.json" style="display:none" onchange="importBackup(this)">
         </div>
@@ -2001,7 +2011,6 @@ function render() {
     </div>`;
   }
 }
-
 
 function updM(point, side, val) {
   const f = newForm;

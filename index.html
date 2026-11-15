@@ -85,7 +85,7 @@
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v60</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v61</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -498,7 +498,6 @@ function diagnose(r, sym) {
     out.push({ t: "Clip the tip", z: "tip", b: "The classic fix for a flat reed — start with ~0.5–1mm and re-check.", src: "Popkin & McKaig, 'Bassoon Reed Making' — the standard first remedy for flat pitch" });
     out.push({ t: "Check wire 1 position/tension", b: "Pulling the first wire toward the collar raises the pitch.", src: "Weait, 'Bassoon Reed Making' — wire adjustment chapter" });
     if (hasData && valAt(r,"T") !== null) out.push({ t: "Is the tip too thin?", b: `Your T value: ${valAt(r,"T")}. A too-thin tip with a wide aperture = flat pitch.`, src: "Reasoned from general practice — not tied to a specific source" });
-
   }
   if (sym.sharp) {
     out.push({ t: "Thin the shoulder/back zone (4–8mm) rather than the very tip", z: "back", b: "High pitch often comes from an over-stiff reed — taking a little wood from the middle usually lowers it.", src: "General practice — scrape order advice appears in most method books" });
@@ -851,7 +850,7 @@ function parseReedMarkdown(text, fallbackId) {
     hm[2].split(";").forEach(part => {
       const pm = part.trim().match(/^(\S+)\s+(kreisā|labā|1\. puse|2\. puse)\s+(\S+?)→(\S+)$/);
       if (pm) changes.push({ point: pm[1], side: (pm[2] === "kreisā" || pm[2] === "1. puse") ? "left" : "right", from: pm[3], to: pm[4] });
-      const fm2 = part.trim().match(/^(wire_[123]|status|reitings_tagad|reitings_sakumā|metode|tip_profiler_setting)\s+(.+?)→(.+)$/);
+      const fm2 = part.trim().match(/^(wire_[123]|status|reitings_tagad|reitings_sākumā|reitings_sakumā|metode|tip_profiler_setting)\s+(.+?)→(.+)$/);
       if (fm2) fchanges.push({ k: fm2[1], from: fm2[2], to: fm2[3] });
     });
     if (changes.length) meas_log.push({ stamp: hm[1].trim(), changes });
@@ -999,7 +998,6 @@ let wireSel = { wire: null, action: null };
 let wireTo = "";
 
 function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.style.display = "block"; setTimeout(() => t.style.display = "none", 2500); }
-
 function syncFail(msg) { const b = document.getElementById("syncbar"); b.textContent = "⚠️ Nav saglabāts GitHub: " + msg + " — spied šeit, lai aizvērtu"; b.style.display = "block"; }
 async function pushToGithub(r, what) {
   if (!cfg.token) return;
@@ -1500,7 +1498,6 @@ function render() {
         <label>Drāts (ja mainīji)</label>
         <div class="chips">${["1. drāti","2. drāti","abas drātis"].map(w => `<button class="chip ${wireSel.wire===w?"on":""}" onclick="wireSel.wire='${w}';render()">${w}</button>`).join("")}</div>
         <div class="chips">${["pievilka","atlaiza","nomainīja"].map(a => `<button class="chip ${wireSel.action===a?"on":""}" onclick="wireSel.action='${a}';render()">${a}</button>`).join("")}</div>
-
         ${wireSel.action === "nomainīja" ? `<input value="${esc(wireTo)}" placeholder="nomainīju uz… (piem. 07 Rieger)" style="margin-bottom:4px" oninput="wireTo=this.value">` : ""}
         <label>Kas notika? (nav obligāti)</label>
         <textarea id="logtext" rows="3" placeholder="piem. Pievilku otro drāti, mī stabils…"></textarea>
@@ -2001,7 +1998,6 @@ function render() {
         <div class="sub" style="font-size:11px;margin:4px 0 8px">Lejupielādē pilnu JSON kopiju (visas mēles + logi). Glabā kaut kur drošībā — no tās var atjaunot visu.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="primary" onclick="exportBackup()">⬇️ Lejupielādēt backup</button>
-
           <button class="chip" onclick="document.getElementById('importfile').click()">⬆️ Importēt backup</button>
           <input type="file" id="importfile" accept="application/json,.json" style="display:none" onchange="importBackup(this)">
         </div>
@@ -2096,7 +2092,7 @@ function enterEdit(id) {
   const r = reeds.find(x => x.reed_id === id);
   editBaseline = r ? JSON.parse(JSON.stringify(r.m)) : [];
   editBaselineE = r ? { nest: r.e_nestabila, pak: r.e_pakape } : {};
-  editBaselineF = r ? { wire_1: r.wire_1 || "", wire_2: r.wire_2 || "", wire_3: r.wire_3 || "", status: r.status || "", reitings_tagad: String(r.reitings_tagad ?? ""), reitings_sakumā: String(r.reitings_sākumā ?? ""), metode: r.metode || "", diegs: r.diegs || "", tip_profiler_setting: r.tip_profiler_setting || "", maker: r.maker || "Pauls", tube_length: r.tube_length || "", blade_length: r.blade_length || "" } : {};
+  editBaselineF = r ? { wire_1: r.wire_1 || "", wire_2: r.wire_2 || "", wire_3: r.wire_3 || "", status: r.status || "", reitings_tagad: String(r.reitings_tagad ?? ""), reitings_sākumā: String(r.reitings_sākumā ?? ""), metode: r.metode || "", diegs: r.diegs || "", tip_profiler_setting: r.tip_profiler_setting || "", maker: r.maker || "Pauls", tube_length: r.tube_length || "", blade_length: r.blade_length || "" } : {};
   view = "edit"; render();
 }
 function saveEdit() {
@@ -2196,6 +2192,5 @@ async function testConnection() {
 render();
 </script>
 </body>
-<!-- v60 redeploy #2: after GitHub actions incident -->
 </html>
 

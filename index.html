@@ -85,7 +85,7 @@
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v64</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v65</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -833,8 +833,27 @@ async function pullFromGithub() {
   });
   reeds = [...out, ...local].sort((a,b) => a.reed_id.localeCompare(b.reed_id));
   reeds.forEach(defaultMaker);
+  sanitizeAllReeds();
   persist();
   return updated;
+}
+
+// 🧹 fantoma vēstures tīrīšana: izņem veco versiju bug-generētos reitings_sākumā ierakstus (–→X, X→–)
+function isPhantom(c) {
+  const k = String(c.k);
+  if (k !== "reitings_sākumā" && k !== "reitings_sakumā") return false;
+  const f = String(c.from ?? "").trim(), t = String(c.to ?? "").trim();
+  return ["", "–", "-"].includes(f) || ["", "–", "-"].includes(t);
+}
+function sanitizeAllReeds() {
+  let changed = false;
+  reeds.forEach(r => {
+    if (!r.field_log) return;
+    r.field_log.forEach(e => { const n = e.changes.filter(c => !isPhantom(c)); if (n.length !== e.changes.length) { e.changes = n; changed = true; } });
+    const keep = r.field_log.filter(e => e.changes.length);
+    if (keep.length !== r.field_log.length) { r.field_log = keep; changed = true; }
+  });
+  if (changed) persist();
 }
 
 function parseReedMarkdown(text, fallbackId) {
@@ -2291,6 +2310,7 @@ async function testConnection() {
   }
 }
 
+sanitizeAllReeds(); // vienreizēja tīrīšana arī no localStorage mantojuma
 render();
 </script>
 </body>

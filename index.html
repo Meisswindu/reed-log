@@ -85,7 +85,7 @@
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v66</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v67</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -831,15 +831,17 @@ async function pullFromGithub() {
   };
   let updated = 0;
   const heal = [];
+  const keepLocalKeys = new Set();
+  const fileKeyOf = r => (r._file || r.reed_id + ".md");
   const local = reeds.filter(r => {
-    const g = out.find(g => (g._file || g.reed_id + ".md") === (r._file || r.reed_id + ".md"));
+    const g = out.find(g => fileKeyOf(g) === fileKeyOf(r));
     if (!g) { heal.push(r); return true; } // local-only: keep + push uz GitHub (iespējams neizdevās tokena dēļ)
-    if (editStampOf(r) > editStampOf(g)) { heal.push(r); return true; } // local newer: patur lokālo
-    if (editStampOf(r) === editStampOf(g)) return true; // vienāds: patur lokālo (bez pārrakstīšanas)
+    if (editStampOf(r) > editStampOf(g)) { heal.push(r); keepLocalKeys.add(fileKeyOf(g)); return true; } // local newer: patur lokālo, GitHub kopija tiek aizvietota
+    if (editStampOf(r) === editStampOf(g)) { keepLocalKeys.add(fileKeyOf(g)); return true; } // vienāds: patur lokālo, GitHub kopija neies
     updated++; // GitHub newer: GitHub kopija aizstāj lokālo
     return false;
   });
-  reeds = [...out, ...local].sort((a,b) => a.reed_id.localeCompare(b.reed_id));
+  reeds = [...out.filter(g => !keepLocalKeys.has(fileKeyOf(g))), ...local].sort((a,b) => a.reed_id.localeCompare(b.reed_id));
   reeds.forEach(defaultMaker);
   sanitizeAllReeds();
   persist();
@@ -863,6 +865,14 @@ function sanitizeAllReeds() {
     if (keep.length !== r.field_log.length) { r.field_log = keep; changed = true; }
   });
   if (changed) persist();
+}
+
+// 🔁 duplikātu remonts: ja kāda merge atstāj vairākas kopijas, patur pēdējo (lokālo) pa vienai uz katru failu
+function dedupeReeds() {
+  const fileKeyOf = r => (r._file || r.reed_id + ".md");
+  const seen = new Map();
+  reeds.forEach(r => seen.set(fileKeyOf(r), r));
+  if (seen.size !== reeds.length) { reeds = [...seen.values()]; persist(); }
 }
 
 function parseReedMarkdown(text, fallbackId) {
@@ -2326,6 +2336,7 @@ async function testConnection() {
   }
 }
 
+dedupeReeds(); // v66 duplikātu remonts: patur vienu (pēdējo/lokālo) kopiju uz katru mēli
 sanitizeAllReeds(); // vienreizēja tīrīšana arī no localStorage mantojuma
 render();
 </script>

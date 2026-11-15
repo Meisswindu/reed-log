@@ -85,7 +85,7 @@
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v63</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v64</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -1078,7 +1078,43 @@ function updPrev() {
   if (pf) pf.textContent = "Priekšskatījums: " + cfg.dir + "/" + newForm.reed_id + ".md";
 }
 
+// 🚧 datu kvalitātes sargi: acīmredzamu ievades kļūdu (vienību juceklis, decimāļi, typo) ķeršana pirms saglabāšanas
+const PLAUS_LEN = { tube_length: [24, 32], blade_length: [22, 31], cane_hardness: [5, 25] };
+const PLAUS_MM = { t: [12, 45], 2: [20, 65], 4: [35, 75], 8: [55, 95], 12: [65, 110], 16: [70, 120], 20: [75, 130], 24: [80, 135], l: [85, 150] };
+const mmLabel = p => p === "t" ? "tips" : (p === "l" ? "L (spals)" : p + "mm");
+const LEN_LABELS = { tube_length: "caurulītes garums", blade_length: "plāksnes garums", cane_hardness: "cane_hardness" };
+function plausWarnings(r) {
+  const w = [];
+  Object.keys(PLAUS_LEN).forEach(k => {
+    const s = String(r[k] || "").trim();
+    const v = Number(s);
+    if (s !== "" && !isNaN(v) && (v < PLAUS_LEN[k][0] || v > PLAUS_LEN[k][1]))
+      w.push(`${LEN_LABELS[k]}: ${s} — parasti ${PLAUS_LEN[k][0]}–${PLAUS_LEN[k][1]} (vienību kļūda? piem. 2.8 = 28)`);
+  });
+  (r.m || []).forEach(row => {
+    const p = normPoint(row.point);
+    const lim = PLAUS_MM[p];
+    if (!lim) return;
+    ["left", "right"].forEach(side => {
+      const s = String(row[side] || "").trim();
+      const v = Number(s);
+      if (s !== "" && !isNaN(v) && (v < lim[0] || v > lim[1]))
+        w.push(`${mmLabel(p)} ${side === "left" ? "1." : "2."} puse: ${s} — parasti ${lim[0]}–${lim[1]} simtdaļās mm (vai norādīti mm nevis 0,01 mm?)`);
+    });
+  });
+  return w;
+}
+function qualityGaps(r) {
+  const gaps = [];
+  if (!String(r.cane_hardness || "").trim()) gaps.push("cane_hardness");
+  if ((r.m || []).filter(row => String(row.left).trim() !== "" || String(row.right).trim() !== "").length < 3) gaps.push("mērījumi (vismaz 3 punkti)");
+  if (!String(r.reitings_sākumā || "").trim()) gaps.push("reitings sākumā");
+  if (!(r.log || []).length) gaps.push("log ieraksti");
+  return gaps;
+}
 function saveReed() {
+  const _warn = plausWarnings(newForm);
+  if (_warn.length && !confirm("⚠️ Iespējamas ievades kļūdas:\n\n" + _warn.join("\n") + "\n\nSaglabāt tāpat?")) return;
   // a fresh reed's current rating = its starting rating (until re-rated)
   if (!String(newForm.reitings_tagad || "").trim() && String(newForm.reitings_sākumā || "").trim()) newForm.reitings_tagad = newForm.reitings_sākumā;
   newForm.tube_length_start = newForm.tube_length;
@@ -1779,6 +1815,7 @@ function render() {
         <b style="font-size:18px">✏️ ${esc(r.reed_id)} <span class="sub" style="font-size:12px">${esc(r.datums)}</span></b>
         <button class="chip" onclick="view='library';render()">← Atpakaļ</button>
       </div>
+      ${(() => { const gaps = qualityGaps(r); return gaps.length ? `<div class="card" style="background:#fffbeb;border-color:#fcd34d;margin-bottom:10px"><b style="font-size:12px">📋 Datu kvalitāte</b><div class="sub" style="margin-top:4px">Trūkst: ${gaps.map(g => `<span style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:1px 8px;font-size:11px;margin-right:4px">${esc(g)}</span>`).join("")}</div></div>` : ""; })()}
 
       <div class="card">
         <b style="font-size:14px">📊 Stāvoklis</b>
@@ -2157,6 +2194,8 @@ function enterEdit(id) {
 function saveEdit() {
   const r = reeds.find(x => x.reed_id === editTarget);
   if (!r) { view = "library"; render(); return; }
+  const _warn = plausWarnings(r);
+  if (_warn.length && !confirm("⚠️ Iespējamas ievades kļūdas:\n\n" + _warn.join("\n") + "\n\nSaglabāt tāpat?")) return;
   // dedupe measurement rows (case/variant spellings of same point; last one wins)
   const seen = new Map();
   (r.m || []).forEach(row => seen.set(normPoint(row.point), row));

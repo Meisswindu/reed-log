@@ -85,7 +85,7 @@
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v61</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v62</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -740,7 +740,19 @@ async function gh(path, opts = {}) {
       ...headers,
     }
   });
+  if (res.status === 401) throw new Error("Token nederīgs vai beidzies (401 Bad credentials). Izveido jaunu: github.com → Settings → Developer settings → Fine-grained tokens (Contents: Read and write, tikai obsidian-domas-utt) un ielīmē ⚙️ šeit.");
   if (!res.ok) { const t = await res.text(); throw new Error(`GitHub ${res.status}: ${t.slice(0,200)}`); }
+  // opportunistically learn the token's expiry from GitHub's header
+  // (browsers may not expose it via CORS, and GitHub has had a bug returning "now" — so sanity-check: only trust future dates >1 day out)
+  try {
+    const h = res.headers.get("github-authentication-token-expiration");
+    if (h) { const d = new Date(h);
+      if (!isNaN(d) && d.getTime() - Date.now() > 86400000) {
+        const iso = d.toISOString().slice(0, 10);
+        if (cfg.tokenExp !== iso) { cfg.tokenExp = iso; saveCfg(); }
+      }
+    }
+  } catch (e) {}
   return res.json();
 }
 
@@ -1481,6 +1493,8 @@ function render() {
       <div class="card"><b style="font-size:13px">⚙️ GitHub savienojums</b>
         <p class="txt">${cfg.token ? "Token ievadīts — ieraksti tiks saglabāti tavā repo." : "Bez token ieraksti saglabājas tikai šajā pārlūkā. Ievadi token, lai rakstītu straight uz Obsidian vault."}</p>
         <div style="display:flex;gap:8px"><input id="cfg-token" type="password" placeholder="GitHub token (fine-grained)" value="${esc(cfg.token)}" style="flex:1"><button class="chip" onclick="saveToken()">Saglabāt</button></div>
+        ${cfg.token ? `<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><span class="sub" style="font-size:11px;white-space:nowrap">Derīgs līdz:</span><input id="cfg-tokenexp" type="date" value="${esc(cfg.tokenExp || "")}" onchange="saveTokenExp()"></div>` : ""}
+        ${tokenBadgeHtml()}
         ${cfg.token ? `<button class="chip" style="margin-top:10px" onclick="doPull()">⬇️ Ielādēt mēles no GitHub</button>
         <button class="chip" style="margin-top:10px" onclick="testConnection()">🔧 Testēt savienojumu</button>
         <pre id="testresult" style="display:none;margin-top:10px;max-height:200px"></pre>` : ""}
@@ -1992,6 +2006,8 @@ function render() {
       <label>Repo</label><input id="cfg-repo" value="${esc(cfg.repo)}">
       <label>Mape</label><input id="cfg-dir" value="${esc(cfg.dir)}">
       <label>Branch</label><input id="cfg-branch" value="${esc(cfg.branch)}">
+      <label>Token derīgs līdz (no GitHub tokena lapas)</label><input type="date" id="cfg-tokenexp" value="${esc(cfg.tokenExp || "")}">
+      ${tokenBadgeHtml()}
       <button class="primary" onclick="saveSettings()">Saglabāt</button>
       <button class="chip" style="margin-top:10px" onclick="doPull()">⬇️ Ielādēt mēles no GitHub</button>
       <div class="card" style="margin-top:14px;background:#f0fdf4;border-color:#86efac"><b style="font-size:13px">💾 Rezerves kopija</b>
@@ -2018,7 +2034,26 @@ function updM(point, side, val) {
   document.getElementById("prev").textContent = reedToMarkdown(f);
 }
 
-function saveToken() { cfg.token = document.getElementById("cfg-token").value.trim(); saveCfg(); toast("Token saglabāts ✓"); render(); }
+function saveToken() {
+  const t = document.getElementById("cfg-token").value.trim();
+  if (t !== cfg.token) { cfg.tokenSetAt = new Date().toISOString(); cfg.tokenExp = ""; }
+  cfg.token = t; saveCfg(); toast("Token saglabāts ✓"); render();
+}
+function saveTokenExp() { cfg.tokenExp = (document.getElementById("cfg-tokenexp")?.value) || ""; saveCfg(); render(); toast(cfg.tokenExp ? "Token derīgums saglabāts ✓" : "Derīgums notīrīts"); }
+function tokenDaysLeft() {
+  if (!cfg.tokenExp) return null;
+  const d = new Date(cfg.tokenExp + "T23:59:59");
+  return isNaN(d) ? null : Math.ceil((d.getTime() - Date.now()) / 86400000);
+}
+function tokenBadgeHtml() {
+  if (!cfg.token) return "";
+  const days = tokenDaysLeft();
+  const age = cfg.tokenSetAt ? Math.floor((Date.now() - new Date(cfg.tokenSetAt).getTime()) / 86400000) : null;
+  if (days === null) return `<p class="note" style="margin:6px 0 0">${age !== null ? `Token ievadīts pirms ${age} dienām. ` : ""}Ievadi beigu datumu (github.com → Settings → Developer settings → Fine-grained tokens rāda to), un te parādīsies atgādinājums pirms beigām.</p>`;
+  if (days < 0) return `<p class="note" style="margin:6px 0 0"><b style="color:#b91c1c">⛔ Token beidzies pirms ${-days} dienām — izveido jaunu un ielīmē šeit!</b></p>`;
+  if (days <= 7) return `<p class="note" style="margin:6px 0 0"><b style="color:#b45309">⚠️ Token derīgs vēl ${days} dienas — taisi jaunu laikus!</b></p>`;
+  return `<p class="note" style="margin:6px 0 0"><span style="color:#15803d">✓ Token derīgs vēl ${days} dienas</span></p>`;
+}
 
 // ---------------- edit existing reed ----------------
 function usedValues(key) {
@@ -2150,7 +2185,11 @@ function saveEdit() {
   pushToGithub(r, "labots");
 }
 function saveSettings() {
-  cfg.token = document.getElementById("cfg-token").value.trim();
+  const t = document.getElementById("cfg-token").value.trim();
+  if (t !== cfg.token) { cfg.tokenSetAt = new Date().toISOString(); cfg.tokenExp = ""; }
+  cfg.token = t;
+  const expEl = document.getElementById("cfg-tokenexp");
+  if (expEl && expEl.value !== (cfg.tokenExp || "")) { cfg.tokenExp = expEl.value || ""; }
   cfg.repo = document.getElementById("cfg-repo").value.trim();
   cfg.dir = document.getElementById("cfg-dir").value.trim();
   cfg.branch = document.getElementById("cfg-branch").value.trim();

@@ -85,7 +85,7 @@
     <button id="t-stats" onclick="go('stats')">📊 Statistika</button>
   </div>
   <div id="app"></div>
-  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v65</span></div>
+  <div class="sub" style="text-align:center;margin-top:24px">Saglabā tavā Obsidian vaultā · Fagots/Mēles/Reeds · <span id="ver">v66</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="syncbar" id="syncbar" onclick="this.style.display='none'"></div>
@@ -822,19 +822,28 @@ async function pullFromGithub() {
     }));
     batch.filter(Boolean).forEach(r => out.push(r));
   }
-  // MERGE by newest log stamp: whichever copy (local vs GitHub) was edited last wins, per reed
-  const stampOf = r => r.log && r.log.length ? String(r.log[r.log.length-1].stamp) : "";
+  // MERGE by newest edit stamp (log + vēsture): whichever copy was edited last wins — lokālās izmaiņas (piem. nesaņemtie sync tokena mēpos) vairs nepazūd
+  const editStampOf = r => {
+    const st = [];
+    if (r.log && r.log.length) st.push(String(r.log[r.log.length - 1].stamp));
+    [r.field_log, r.meas_log, r.e_log, r.comments].forEach(a => { if (a && a.length) st.push(String(a[a.length - 1].stamp)); });
+    return st.sort().pop() || "";
+  };
   let updated = 0;
+  const heal = [];
   const local = reeds.filter(r => {
     const g = out.find(g => (g._file || g.reed_id + ".md") === (r._file || r.reed_id + ".md"));
-    if (!g) return true; // local-only: keep
-    if (stampOf(g) > stampOf(r)) updated++; // GitHub newer: GitHub copy replaces local
+    if (!g) { heal.push(r); return true; } // local-only: keep + push uz GitHub (iespējams neizdevās tokena dēļ)
+    if (editStampOf(r) > editStampOf(g)) { heal.push(r); return true; } // local newer: patur lokālo
+    if (editStampOf(r) === editStampOf(g)) return true; // vienāds: patur lokālo (bez pārrakstīšanas)
+    updated++; // GitHub newer: GitHub kopija aizstāj lokālo
     return false;
   });
   reeds = [...out, ...local].sort((a,b) => a.reed_id.localeCompare(b.reed_id));
   reeds.forEach(defaultMaker);
   sanitizeAllReeds();
   persist();
+  if (heal.length) heal.forEach(r => pushToGithub(r, "atjaunināts — lokālā kopija bija jaunāka / nebija GitHub"));
   return updated;
 }
 
@@ -2261,6 +2270,13 @@ function saveEdit() {
     r.field_log = r.field_log || [];
     r.field_log.push({ stamp: nowStamp(), changes: fChanges });
     toast(`🔧 ${fChanges.map(c => F_LABELS[c.k] + ": " + c.from + " → " + c.to).join(" · ")} — pierakstīts vēsturē ✓`);
+  }
+  // 💔 statuss → salauzta/nolietota: automātiski pieraksta logā ar pašreizējo reitingu
+  const stBefore = String(editBaselineF?.status || "");
+  if (stBefore !== String(r.status || "") && (r.status === "salauzta" || r.status === "nolietota")) {
+    r.log = r.log || [];
+    r.log.push({ stamp: nowStamp(), rating: r.reitings_tagad ? Number(r.reitings_tagad) : null, text: `💔 statuss: ${stBefore || "–"} → ${r.status}` });
+    toast("💔 Statusa maiņa pierakstīta logā");
   }
   persist(); toast("Izmaiņas saglabātas ✓");
   view = "library"; render();
